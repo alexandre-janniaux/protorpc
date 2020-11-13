@@ -15,24 +15,26 @@ TEST(ipc_test, simple_send)
     ipc::Port source(pair[0]);
     ipc::Port destination(pair[1]);
 
-    std::vector<std::uint8_t> input_data;
-    std::vector<int> dummy_input_handles;
+    ipc::Message sent;
+    sent.destination = 78;
+    sent.opcode = 42;
 
     for (unsigned i = 0; i < 123; i++)
-        input_data.push_back(0x41);
+        sent.payload.push_back(0x41);
 
-    ipc::PortError err = source.send(input_data, dummy_input_handles);
-
-    ASSERT_EQ(err, ipc::PortError::Ok);
-
-    std::vector<std::uint8_t> output_data;
-    std::vector<int> dummy_output_handles;
-
-    err = destination.receive(output_data, dummy_output_handles);
+    ipc::PortError err = source.send(sent);
 
     ASSERT_EQ(err, ipc::PortError::Ok);
-    ASSERT_EQ(output_data.size(), input_data.size());
-    ASSERT_EQ(output_data, input_data);
+
+    ipc::Message received;
+
+    err = destination.receive(received);
+
+    ASSERT_EQ(err, ipc::PortError::Ok);
+    ASSERT_EQ(received.destination, sent.destination);
+    ASSERT_EQ(received.opcode, sent.opcode);
+    ASSERT_EQ(received.payload.size(), sent.payload.size());
+    ASSERT_EQ(received.payload, sent.payload);
 }
 
 TEST(ipc_test, send_huge)
@@ -46,25 +48,22 @@ TEST(ipc_test, send_huge)
     // 50Mb
     constexpr std::size_t PAYLOAD_SIZE = 50 * 1024 * 1024;
 
-    std::vector<std::uint8_t> input_payload;
-    input_payload.resize(PAYLOAD_SIZE);
-    std::memset(input_payload.data(), 0xfe, input_payload.size());
+    ipc::Message sent;
+    sent.payload.resize(PAYLOAD_SIZE);
+    std::memset(sent.payload.data(), 0xfe, sent.payload.size());
 
-    std::thread sending_thread([&source, &input_payload]() -> void {
-        std::vector<int> dummy_handles;
-        ipc::PortError err = source.send(input_payload, dummy_handles);
+    std::thread sending_thread([&source, &sent]() -> void {
+        ipc::PortError err = source.send(sent);
 
         ASSERT_EQ(err, ipc::PortError::Ok);
     });
 
-    std::vector<std::uint8_t> output;
-    std::vector<int> dummy_output_handles;
-
-    ipc::PortError err = destination.receive(output, dummy_output_handles);
+    ipc::Message received;
+    ipc::PortError err = destination.receive(received);
 
     ASSERT_EQ(err, ipc::PortError::Ok);
-    ASSERT_EQ(output.size(), PAYLOAD_SIZE);
-    ASSERT_EQ(output, input_payload);
+    ASSERT_EQ(received.payload.size(), PAYLOAD_SIZE);
+    ASSERT_EQ(received.payload, sent.payload);
 
     sending_thread.join();
 }
@@ -99,19 +98,19 @@ TEST(ipc_test, fd_passing_linux)
     // Child process
     if (pid == 0)
     {
-        std::vector<std::uint8_t> payload;
-        std::vector<int> handles;
-
-        ipc::PortError err = child_port.receive(payload, handles);
+        ipc::Message received;
+        ipc::PortError err = child_port.receive(received);
 
         ASSERT_EQ(err, ipc::PortError::Ok);
-        ASSERT_EQ(handles.size(), 1);
+        ASSERT_EQ(received.handles.size(), 1);
 
-        ipc::Port new_port(handles[0]);
-        payload = { 0xde, 0xad, 0xbe, 0xef };
-        handles.clear();
+        ipc::Port new_port(received.handles[0]);
 
-        err = new_port.send(payload, handles);
+        // Sending back data to ack the handle we received
+        ipc::Message sent;
+        sent.payload = { 0xde, 0xad, 0xbe, 0xef };
+
+        err = new_port.send(sent);
 
         ASSERT_EQ(err, ipc::PortError::Ok);
 
@@ -119,24 +118,24 @@ TEST(ipc_test, fd_passing_linux)
     }
 
     // Send handle that is absent from the child process.
-    std::vector<std::uint8_t> payload;
-    std::vector<int> handles = { parent_b };
+    ipc::Message sent;
+    sent.handles = { parent_b };
 
-    ipc::PortError err = parent_port.send(payload, handles);
+    ipc::PortError err = parent_port.send(sent);
 
     ASSERT_EQ(err, ipc::PortError::Ok);
 
     ipc::Port parent_a_port(parent_a);
-    err = parent_a_port.receive(payload, handles);
+    ipc::Message receive;
+    err = parent_a_port.receive(receive);
 
     ASSERT_EQ(err, ipc::PortError::Ok);
 
     std::vector<std::uint8_t> expected_payload = { 0xde, 0xad, 0xbe, 0xef };
-    ASSERT_EQ(payload, expected_payload);
+    ASSERT_EQ(receive.payload, expected_payload);
 }
 
 #endif
-
 
 int main(int argc, char** argv)
 {

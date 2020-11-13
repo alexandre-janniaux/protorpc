@@ -10,6 +10,8 @@ constexpr std::size_t MAX_HANDLES = 128;
 // TODO: Use getsockopt in Port constructor to query the best value
 constexpr std::size_t MSG_MAX_SIZE = 8192;
 
+constexpr std::uint64_t HEADER_META_COUNT = 4;
+
 namespace ipc
 {
 
@@ -17,11 +19,29 @@ Port::Port(int fd)
     : pipe_fd_(fd)
 {}
 
-PortError Port::send(std::vector<std::uint8_t>& data, std::vector<int>& handles)
+/** Send a message over a native port
+ *
+ * The message is sent using a sendmsg call + x * send calls.
+ * The sendmsg sends the metadata + the handles in the following order.
+ *
+ * - Payload size: u64
+ * - Handle count: u64
+ * - Destination : u64
+ * - Opcode      : u64
+ *
+ * Afterwards the send calls send the full payload.
+ */
+PortError Port::send(const Message& message)
 {
     // First we need to send payload size + handle count + handles
     std::uint8_t sendmsg_payload[CMSG_SPACE(sizeof(int) * MAX_HANDLES * 2)];
-    std::size_t header_payload[2] = { data.size(), handles.size() };
+    std::uint64_t header_payload[HEADER_META_COUNT] =
+    {
+        message.payload.size(),
+        message.handles.size(),
+        message.destination,
+        message.opcode
+    };
 
     struct msghdr header = {0};
     struct iovec iov;
@@ -32,18 +52,18 @@ PortError Port::send(std::vector<std::uint8_t>& data, std::vector<int>& handles)
     header.msg_iov = &iov;
     header.msg_iovlen = 1;
 
-    if (handles.size() > 0)
+    if (message.handles.size() > 0)
     {
         header.msg_control = sendmsg_payload;
-        header.msg_controllen = CMSG_SPACE(sizeof(int) * handles.size());
+        header.msg_controllen = CMSG_SPACE(sizeof(int) * message.handles.size());
 
         // Prepare fds
         struct cmsghdr* cmsg = CMSG_FIRSTHDR(&header);
         cmsg->cmsg_level = SOL_SOCKET;
         cmsg->cmsg_type = SCM_RIGHTS;
-        cmsg->cmsg_len = CMSG_LEN(sizeof(int) * handles.size());
+        cmsg->cmsg_len = CMSG_LEN(sizeof(int) * message.handles.size());
 
-        std::memcpy(CMSG_DATA(cmsg), handles.data(), sizeof(int) * handles.size());
+        std::memcpy(CMSG_DATA(cmsg), message.handles.data(), sizeof(int) * message.handles.size());
     }
 
     int err = sendmsg(pipe_fd_, &header, 0);
@@ -58,12 +78,12 @@ PortError Port::send(std::vector<std::uint8_t>& data, std::vector<int>& handles)
 
     std::size_t written = 0;
 
-    while (written != data.size())
+    while (written != message.payload.size())
     {
-        std::size_t remaining = data.size() - written;
+        std::size_t remaining = message.payload.size() - written;
         remaining = (remaining > MSG_MAX_SIZE) ? MSG_MAX_SIZE : remaining;
 
-        ssize_t cur_written = ::send(pipe_fd_, data.data() + written, remaining, 0);
+        ssize_t cur_written = ::send(pipe_fd_, message.payload.data() + written, remaining, 0);
 
         if (cur_written < 0)
         {
@@ -82,15 +102,15 @@ PortError Port::send(std::vector<std::uint8_t>& data, std::vector<int>& handles)
     return PortError::Ok;
 }
 
-PortError Port::receive(std::vector<std::uint8_t>& data, std::vector<int>& handles)
+PortError Port::receive(Message& message)
 {
-    data.clear();
-    handles.clear();
+    message.payload.clear();
+    message.handles.clear();
 
     // First we receive payload size + handle count + handles
     // We allocate enough space just to be safe
     std::uint8_t recvmsg_payload[CMSG_SPACE(sizeof(int) * MAX_HANDLES * 2)];
-    std::size_t header_payload[2] = {0};
+    std::uint64_t header_payload[HEADER_META_COUNT] = {0};
 
     struct msghdr header = {0};
     struct iovec iov;
@@ -116,6 +136,8 @@ PortError Port::receive(std::vector<std::uint8_t>& data, std::vector<int>& handl
     // Collect handles
     std::size_t payload_size = header_payload[0];
     std::size_t handle_count = header_payload[1];
+    message.destination = header_payload[2];
+    message.opcode = header_payload[3];
 
     if (handle_count > 0)
     {
@@ -124,13 +146,13 @@ PortError Port::receive(std::vector<std::uint8_t>& data, std::vector<int>& handl
         if (!cmsg)
             return PortError::IncompleteMessage;
 
-        handles.resize(handle_count);
-        std::memcpy(handles.data(), CMSG_DATA(cmsg), handle_count * sizeof(int));
+        message.handles.resize(handle_count);
+        std::memcpy(message.handles.data(), CMSG_DATA(cmsg), handle_count * sizeof(int));
     }
 
     // Now read the actual payload into the output buffer. We do this in two
     // steps to not be limited by the 200k transfer size limit on sendmsg.
-    data.resize(payload_size);
+    message.payload.resize(payload_size);
     std::size_t bytes_read = 0;
 
     while (bytes_read != payload_size)
@@ -138,7 +160,7 @@ PortError Port::receive(std::vector<std::uint8_t>& data, std::vector<int>& handl
         std::size_t remaining = payload_size - bytes_read;
         remaining = (remaining > MSG_MAX_SIZE) ? MSG_MAX_SIZE : remaining;
 
-        ssize_t cur_read = recv(pipe_fd_, data.data() + bytes_read, remaining, 0);
+        ssize_t cur_read = recv(pipe_fd_, message.payload.data() + bytes_read, remaining, 0);
 
         if (cur_read < 0)
         {

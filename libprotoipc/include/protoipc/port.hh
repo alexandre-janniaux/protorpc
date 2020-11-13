@@ -4,8 +4,22 @@
 #include <vector>
 #include <cstdint>
 
+#include "protoipc/message.hh"
+
 namespace ipc
 {
+    /**
+     * Abstraction over data sent over ports. Contains enough information
+     * to be routed without having to parse the payload.
+     */
+    struct Message
+    {
+        std::uint64_t destination = 0;
+        std::uint64_t opcode = 0;
+        std::vector<std::uint8_t> payload;
+        std::vector<int> handles;
+    };
+
     enum class PortError
     {
         Ok = 0,
@@ -24,8 +38,8 @@ namespace ipc
     public:
         Port(int fd);
 
-        PortError send(std::vector<std::uint8_t>& data, std::vector<int>& handles);
-        PortError receive(std::vector<std::uint8_t>& data, std::vector<int>& handles);
+        PortError send(const Message& message);
+        PortError receive(Message& message);
 
         int handle() const
         {

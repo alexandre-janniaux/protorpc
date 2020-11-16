@@ -1,0 +1,4 @@
+option('build_examples', type: 'boolean', value: false, description: 'Builds examples')
+option('protoipc_tests', type: 'boolean', value: false, description: 'Builds tests for libprotoipc')
+option('protorpc_tests', type: 'boolean', value: false, description: 'Builds tests for libprotorpc')
+option('sidl_vlc_contrib', type: 'boolean', value: false, description: 'Installs sidl into vlc contrib /bin')

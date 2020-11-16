@@ -1,0 +1,86 @@
+#ifndef RPC_CHANNEL_HH
+#define RPC_CHANNEL_HH
+
+#include <unordered_map>
+#include <deque>
+
+#include "protoipc/port.hh"
+#include "protorpc/rpcobject.hh"
+#include "protorpc/broker.hh"
+
+namespace rpc
+{
+
+    class Channel
+    {
+    public:
+        Channel(ipc::Port port, std::uint64_t server_proxy_id);
+
+        /**
+         * Binds a receiver to the current channel and returns a reference to it.
+         * Notifies the broker through the port of the new object's creation.
+         */
+        template <typename T>
+        Receiver<T> bind_receiver(std::uint64_t object_id, std::uint64_t remote)
+        {
+            // TODO: Forward object id to broker
+            Receiver<T> object = std::make_shared<T>(this, object_id, remote);
+            receivers_.emplace(object_id, object);
+            broker_->register_id(object_id);
+
+            return object;
+        }
+
+        /**
+         * Binds a proxy to the current channel and returns a reference to it.
+         * Notifies the broker through the port of the new object's creation.
+         */
+        template <typename T>
+        Proxy<T> bind_proxy(std::uint64_t object_id, std::uint64_t remote)
+        {
+            // TODO: Forward object id to broker
+            Proxy<T> object = std::make_shared<T>(this, object_id, remote);
+            broker_->register_id(object_id);
+
+            return object;
+        }
+
+        /**
+         * Notifies the broker of the binding of a local object.
+         * This binding is necessary for message routing.
+         */
+        void bind_object(std::uint64_t object_id);
+
+        /**
+         * Sends a message through the native socket.
+         */
+        void send_message(ipc::Message& message);
+
+        /**
+         * Sends a request and synchronously waits for an answer).
+         * XXX: Is returning ipc::Message instead of error code a good idea ?
+         */
+        ipc::Message send_request(ipc::Message& message, std::uint64_t sender);
+
+        /**
+         * Main event loop.
+         */
+        void loop();
+
+        /**
+         * Binds a rpc receiver to the current channel.
+         */
+        void bind(RpcReceiver* receiver);
+    private:
+        ipc::Port port_;
+        Proxy<BrokerProxy> broker_;
+        std::unordered_map<std::uint64_t, std::shared_ptr<RpcReceiver>> receivers_;
+
+        // XXX: Do we need to be threadsafe if the typical use case is
+        //      single-threaded ?
+        std::deque<ipc::Message> message_queue_;
+    };
+
+}
+
+#endif

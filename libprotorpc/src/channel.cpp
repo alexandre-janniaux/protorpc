@@ -1,15 +1,14 @@
 #include <stdexcept>
 #include "protorpc/channel.hh"
 #include "protorpc/broker.hh"
+#include "protorpc/serializer.hh"
 
 namespace rpc
 {
 
-Channel::Channel(ipc::Port port, std::uint64_t broker_proxy_id)
+Channel::Channel(ipc::Port port)
     : port_(port)
-{
-    broker_ = std::make_shared<BrokerProxy>(this, broker_proxy_id, 0);
-}
+{}
 
 void Channel::send_message(ipc::Message& message)
 {
@@ -75,11 +74,16 @@ void Channel::loop()
 void Channel::bind_object(std::uint64_t object_id)
 {
     ipc::Message msg;
+
+    // TODO: Add these constants somewhere
     msg.destination = 0; // Broker is always id 0
     msg.opcode = 0; // BIND_OBJECT opcode
 
-    std::uint8_t* start = reinterpret_cast<std::uint8_t*>(&object_id);
-    msg.payload.insert(msg.payload.begin(), start, start + sizeof(object_id));
+    Serializer s;
+    s.serialize<std::uint64_t>(object_id);
+    msg.payload = s.get();
+
+    send_message(msg);
 }
 
 }

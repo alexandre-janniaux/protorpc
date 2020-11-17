@@ -10,6 +10,13 @@ namespace rpc
 {
     class Channel;
 
+    // TODO: Add specific error types
+    enum class RpcError
+    {
+        Ok = 0,
+        Error
+    };
+
     class RpcObject
     {
     public:
@@ -30,8 +37,10 @@ namespace rpc
          */
         void send_message(ipc::Message& message) const;
 
-    private:
+    protected:
         Channel* channel_;
+
+    private:
         std::uint64_t object_id_;
         std::uint64_t remote_id_;
     };
@@ -43,6 +52,11 @@ namespace rpc
     {
     public:
         RpcProxy(Channel* chan, std::uint64_t id, std::uint64_t remote);
+
+        /**
+         * Send a request through the bound channel.
+         */
+        ipc::Message send_request(ipc::Message& message) const;
     };
 
     /**

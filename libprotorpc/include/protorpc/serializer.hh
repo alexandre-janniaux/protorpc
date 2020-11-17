@@ -38,7 +38,7 @@ namespace rpc
 
         void serialize(void* data, std::size_t size)
         {
-            std::uint8_t* data_ptr = reinterpret_cast<char*>(data);
+            std::uint8_t* data_ptr = reinterpret_cast<std::uint8_t*>(data);
             data_.insert(data_.end(), data_ptr, data_ptr + size);
         }
 

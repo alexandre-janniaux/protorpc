@@ -6,7 +6,6 @@
 
 #include "protoipc/port.hh"
 #include "protorpc/rpcobject.hh"
-#include "protorpc/broker.hh"
 
 namespace rpc
 {
@@ -14,7 +13,7 @@ namespace rpc
     class Channel
     {
     public:
-        Channel(ipc::Port port, std::uint64_t server_proxy_id);
+        Channel(ipc::Port port);
 
         /**
          * Binds a receiver to the current channel and returns a reference to it.
@@ -26,7 +25,7 @@ namespace rpc
             // TODO: Forward object id to broker
             Receiver<T> object = std::make_shared<T>(this, object_id, remote);
             receivers_.emplace(object_id, object);
-            broker_->register_id(object_id);
+            bind_object(object_id);
 
             return object;
         }
@@ -40,16 +39,10 @@ namespace rpc
         {
             // TODO: Forward object id to broker
             Proxy<T> object = std::make_shared<T>(this, object_id, remote);
-            broker_->register_id(object_id);
+            bind_object(object_id);
 
             return object;
         }
-
-        /**
-         * Notifies the broker of the binding of a local object.
-         * This binding is necessary for message routing.
-         */
-        void bind_object(std::uint64_t object_id);
 
         /**
          * Sends a message through the native socket.
@@ -72,8 +65,13 @@ namespace rpc
          */
         void bind(RpcReceiver* receiver);
     private:
+        /**
+         * Notifies the broker of the binding of a local object.
+         * This binding is necessary for message routing.
+         */
+        void bind_object(std::uint64_t object_id);
+
         ipc::Port port_;
-        Proxy<BrokerProxy> broker_;
         std::unordered_map<std::uint64_t, std::shared_ptr<RpcReceiver>> receivers_;
 
         // XXX: Do we need to be threadsafe if the typical use case is

@@ -13,6 +13,7 @@ namespace ipc
         ReadFailed,
         WriteFailed,
         BadFileDescriptor,
+        PollError,
         Unknown
     };
 
@@ -22,6 +23,7 @@ namespace ipc
     class Port
     {
     public:
+        Port();
         Port(int fd);
 
         PortError send(const Message& message);
@@ -31,6 +33,8 @@ namespace ipc
         {
             return pipe_fd_;
         }
+
+        void close();
 
     private:
         int pipe_fd_;

@@ -15,6 +15,10 @@ constexpr std::uint64_t HEADER_META_COUNT = 4;
 namespace ipc
 {
 
+Port::Port()
+    : pipe_fd_(-1)
+{}
+
 Port::Port(int fd)
     : pipe_fd_(fd)
 {}
@@ -174,6 +178,12 @@ PortError Port::receive(Message& message)
     }
 
     return PortError::Ok;
+}
+
+void Port::close()
+{
+    ::close(pipe_fd_);
+    pipe_fd_ = -1;
 }
 
 }

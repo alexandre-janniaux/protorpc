@@ -1,0 +1,155 @@
+from typing import Tuple, Dict, Optional
+from enum import Enum
+
+
+class TokenType(Enum):
+    Eof = 0
+    Namespace = 1
+    Interface = 2
+    Struct = 3
+    Arrow = 4
+    LBrack = 5
+    RBrack = 6
+    LParen = 7
+    RParen = 8
+    LGeneric = 9
+    RGeneric = 10
+    Comma = 11
+    Semicolon = 12
+    Symbol = 13
+
+
+class Position:
+    line: int
+    col: int
+
+    def __init__(self, line: int = 1, col: int = 1) -> None:
+        self.line = line
+        self.col = col
+
+    def __str__(self) -> str:
+        return f"Position(line={self.line}, column={self.col})"
+
+    def __repr__(self) -> str:
+        return str(self)
+
+
+class Token:
+    type: TokenType
+    value: str
+    position: Position
+
+    def __init__(
+        self, tktype: TokenType, tkval: str, pos: Optional[Position] = None
+    ) -> None:
+        self.type = tktype
+        self.value = tkval
+
+        if pos:
+            self.position = pos
+        else:
+            self.position = Position()
+
+    def __str__(self):
+        return self.value
+
+    def __repr__(self):
+        return f"Token(type={str(self.type)}, value='{self.value}', position={self.position})"
+
+
+class Lexer:
+    _data: str
+    _pos: int
+    _col: int
+    _line: int
+
+    def __init__(self, data: str) -> None:
+        self._data = data
+        self._pos = 0
+        self._col = 1
+        self._line = 1
+
+    def _skip_ws(self) -> bool:
+        """ Eats whitespaces and returns whether eof was reached. """
+
+        while self._pos < len(self._data):
+            c = self._data[self._pos]
+
+            if not c.isspace():
+                break
+
+            if c in [" ", "\r", "\t"]:
+                self._col += 1
+            elif c == "\n":
+                self._col = 1
+                self._line += 1
+
+            self._pos += 1
+
+        return self._pos < len(self._data)
+
+    def next_token(self) -> Token:
+        tkval = ""
+        tktype = TokenType.Eof
+
+        if self._skip_ws():
+            return Token(TokenType.Eof, "")
+
+        separators: Dict[str, TokenType] = {
+            "{": TokenType.LBrack,
+            "}": TokenType.RBrack,
+            "(": TokenType.LParen,
+            ")": TokenType.RParen,
+            "<": TokenType.LGeneric,
+            ">": TokenType.RGeneric,
+            ",": TokenType.Comma,
+            ";": TokenType.Semicolon,
+        }
+
+        cur_line = self._line
+        cur_col = self._col
+
+        while self._pos < len(self._data):
+            c = self._data[self._pos]
+
+            if c.isspace():
+                break
+
+            # Arrow operator
+            if c == ">" and tkval == "-":
+                tkval = "->"
+                tktype = TokenType.Arrow
+                self._pos += 1
+                self._col += 1
+                break
+
+            if c in separators:
+                # If we reached a separator after word
+                if len(tkval) > 0:
+                    break
+
+                # Otherwise we process the separator
+                tkval = c
+                tktype = separators[c]
+                self._pos += 1
+                self._col += 1
+                break
+
+            # Otherwise we have a normal character
+            tkval += c
+            self._pos += 1
+            self._col += 1
+
+        # Early return for separators and arrow
+        if tktype != TokenType.Eof:
+            return Token(tktype, tkval, Position(cur_line, cur_col))
+
+        keywords: Dict[str, TokenType] = {
+            "namespace": TokenType.Namespace,
+            "interface": TokenType.Interface,
+            "struct": TokenType.Struct,
+        }
+
+        tktype = keywords.get(tkval, TokenType.Symbol)
+
+        return Token(tktype, tkval, Position(cur_line, cur_col))

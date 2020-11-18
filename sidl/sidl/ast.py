@@ -1,7 +1,12 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 
 class AstNode:
+    pos: Tuple[int, int]
+
+    def __init__(self, pos: Tuple[int, int] = (0, 0)) -> None:
+        self.pos = pos
+
     def accept(self, visitor):
         visit_fn = f"visit_{type(self).__name__}"
 

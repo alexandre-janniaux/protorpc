@@ -62,12 +62,14 @@ class Lexer:
     _pos: int
     _col: int
     _line: int
+    _cur_token: Optional[Token]
 
     def __init__(self, data: str) -> None:
         self._data = data
         self._pos = 0
         self._col = 1
         self._line = 1
+        self._cur_token = None
 
     def _skip_ws(self) -> bool:
         """ Eats whitespaces and returns whether eof was reached. """
@@ -86,14 +88,27 @@ class Lexer:
 
             self._pos += 1
 
-        return self._pos < len(self._data)
+        return self._pos >= len(self._data)
 
-    def next_token(self) -> Token:
+    def peek(self) -> Token:
+        if self._cur_token:
+            return self._cur_token
+
+        self._cur_token = self.next()
+        return self._cur_token
+
+    def next(self) -> Token:
+        if self._cur_token:
+            tok = self._cur_token
+            self._cur_token = None
+            return tok
+
         tkval = ""
         tktype = TokenType.Eof
 
         if self._skip_ws():
             return Token(TokenType.Eof, "")
+
 
         separators: Dict[str, TokenType] = {
             "{": TokenType.LBrack,

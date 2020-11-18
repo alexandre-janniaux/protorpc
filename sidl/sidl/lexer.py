@@ -90,6 +90,13 @@ class Lexer:
 
         return self._pos >= len(self._data)
 
+    def reset(self) -> None:
+        """ Resets the lexer to its original state """
+        self._pos = 0
+        self._col = 1
+        self._line = 1
+        self.cur_token = None
+
     def peek(self) -> Token:
         if self._cur_token:
             return self._cur_token

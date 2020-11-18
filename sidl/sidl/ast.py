@@ -2,10 +2,10 @@ from typing import List, Optional, Tuple
 
 
 class AstNode:
-    pos: Tuple[int, int]
+    position: Tuple[int, int]
 
     def __init__(self, pos: Tuple[int, int] = (0, 0)) -> None:
-        self.pos = pos
+        self.position = pos
 
     def accept(self, visitor):
         visit_fn = f"visit_{type(self).__name__}"

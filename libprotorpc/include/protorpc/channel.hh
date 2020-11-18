@@ -22,7 +22,6 @@ namespace rpc
         template <typename T>
         Receiver<T> bind(std::uint64_t object_id, std::uint64_t remote)
         {
-            // TODO: Forward object id to broker
             Receiver<T> object = std::make_shared<T>(this, object_id, remote);
             receivers_.emplace(object_id, object);
             bind_object(object_id);
@@ -37,7 +36,6 @@ namespace rpc
         template <typename T>
         Proxy<T> bind(std::uint64_t object_id, std::uint64_t remote)
         {
-            // TODO: Forward object id to broker
             Proxy<T> object = std::make_shared<T>(this, object_id, remote);
             bind_object(object_id);
 
@@ -60,10 +58,6 @@ namespace rpc
          */
         void loop();
 
-        /**
-         * Binds a rpc receiver to the current channel.
-         */
-        void bind(RpcReceiver* receiver);
     private:
         /**
          * Notifies the broker of the binding of a local object.

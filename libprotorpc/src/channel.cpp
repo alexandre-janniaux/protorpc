@@ -1,4 +1,5 @@
 #include <stdexcept>
+#include "fmt/core.h"
 #include "protorpc/channel.hh"
 #include "protorpc/broker.hh"
 #include "protorpc/serializer.hh"
@@ -46,6 +47,7 @@ void Channel::loop()
 {
     for (;;)
     {
+        fmt::print("[CHANNEL] Waiting for messages on port {}\n", port_.handle());
         ipc::Message msg;
         ipc::PortError err = port_.receive(msg);
 
@@ -59,6 +61,9 @@ void Channel::loop()
         {
             ipc::Message cur_msg = std::move(message_queue_.front());
             message_queue_.pop_front();
+
+            fmt::print("[CHANNEL] Received message to {} with opcode {}\n",
+                    cur_msg.destination, cur_msg.opcode);
 
             auto handler = receivers_.find(cur_msg.destination);
 

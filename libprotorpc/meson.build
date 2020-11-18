@@ -14,7 +14,7 @@ endif
 
 protorpc_library = library('protorpc', protorpc_sources,
   include_directories: protorpc_headers,
-  dependencies: [protoipc_dep],
+  dependencies: [protoipc_dep, fmt_dep],
   install: true
 )
 
@@ -29,7 +29,7 @@ if get_option('protorpc_tests')
 
   protorpc_tests = executable('protorpc_simple_tests',
     'tests/rpc_simple_tests.cpp',
-    dependencies: [gtest_dep, protorpc_dep]
+    dependencies: [gtest_dep, protorpc_dep, fmt_dep]
   )
 
   test('protorpc simple tests', protorpc_tests)

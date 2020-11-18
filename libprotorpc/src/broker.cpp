@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <stdexcept>
 #include <sys/epoll.h>
+#include "fmt/core.h"
 #include "protorpc/broker.hh"
 #include "protorpc/unserializer.hh"
 
@@ -89,6 +90,9 @@ void Broker::loop()
         if (next_message_(message, port_id) != ipc::PortError::Ok)
             throw std::runtime_error("Error while reading message");
 
+        fmt::print("[BROKER] Received request (destination: {}, opcode: {})\n",
+                message.destination, message.opcode);
+
         // Destination 0 == Broker, Opcode 0 == BIND_OBJECT
         if (message.destination == 0 && message.opcode == 0)
         {
@@ -99,6 +103,8 @@ void Broker::loop()
                 throw std::runtime_error("Could not unserialize object id in BIND_OBJECT message");
 
             object_mappings_.emplace(new_object, port_id);
+
+            fmt::print("[BROKER] Binding object {} from port {}\n", new_object, port_id);
         }
         else
         {
@@ -109,10 +115,13 @@ void Broker::loop()
             if (it == object_mappings_.end())
                 throw std::runtime_error("Message destination does not exist");
 
-            ipc::Port target_port = ports_[port_id_];
+            ipc::Port target_port = ports_[it->second];
 
             if (target_port.send(message) != ipc::PortError::Ok)
                 throw std::runtime_error("Error while sending message to destination port");
+
+            fmt::print("[BROKER] Forwarding message to port {} fd {}\n", port_id,
+                    target_port.handle());
         }
 
     }

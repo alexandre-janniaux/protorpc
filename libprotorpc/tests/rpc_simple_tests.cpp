@@ -108,7 +108,7 @@ TEST(rpc_test, simple_send)
     constexpr std::uint64_t receiver_id = 23;
 
     // Bind a receiver to the second channel
-    auto receiver = second_channel.bind_receiver<SimpleSendReceiver>(receiver_id, proxy_id);
+    auto receiver = second_channel.bind<SimpleSendReceiver>(receiver_id, proxy_id);
 
     std::thread receiver_thread([&]() {
             second_channel.loop();
@@ -118,7 +118,7 @@ TEST(rpc_test, simple_send)
     broker_thread.detach();
     receiver_thread.detach();
 
-    auto proxy = first_channel.bind_proxy<SimpleSendProxy>(proxy_id, receiver_id);
+    auto proxy = first_channel.bind<SimpleSendProxy>(proxy_id, receiver_id);
 
     std::string ping_msg = "eizruzboiczieiojzofczjooxjpokez";
     std::string pong = proxy->ping(ping_msg);

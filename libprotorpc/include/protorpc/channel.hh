@@ -20,7 +20,7 @@ namespace rpc
          * Notifies the broker through the port of the new object's creation.
          */
         template <typename T>
-        Receiver<T> bind_receiver(std::uint64_t object_id, std::uint64_t remote)
+        Receiver<T> bind(std::uint64_t object_id, std::uint64_t remote)
         {
             // TODO: Forward object id to broker
             Receiver<T> object = std::make_shared<T>(this, object_id, remote);
@@ -35,7 +35,7 @@ namespace rpc
          * Notifies the broker through the port of the new object's creation.
          */
         template <typename T>
-        Proxy<T> bind_proxy(std::uint64_t object_id, std::uint64_t remote)
+        Proxy<T> bind(std::uint64_t object_id, std::uint64_t remote)
         {
             // TODO: Forward object id to broker
             Proxy<T> object = std::make_shared<T>(this, object_id, remote);

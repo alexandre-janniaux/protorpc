@@ -7,6 +7,7 @@ from sidl.ast import (
     Method,
     Interface,
     Namespace,
+    Struct
 )
 
 
@@ -98,6 +99,26 @@ class PrettyPrinter(Visitor):
             self._writer.write(")")
 
         self._writer.write_line(";")
+
+    def visit_Struct(self, node: Struct) -> None:
+        self._writer.write("struct ")
+        node.name.accept(self)
+
+        if len(node.fields) == 0:
+            self._writer.write_line(" {}")
+            return
+
+        self._writer.write_line(" {")
+        self._writer.indent()
+
+        for field in node.fields:
+            field.type.accept(self)
+            self._writer.write(" ")
+            field.name.accept(self)
+            self._writer.write_line(";")
+
+        self._writer.deindent()
+        self._writer.write_line("}")
 
     def visit_Interface(self, node: Interface) -> None:
         self._writer.write("interface ")

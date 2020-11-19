@@ -48,7 +48,7 @@ class Method(AstNode):
     arguments: List[VariableDeclaration]
     return_values: Optional[List[VariableDeclaration]]
 
-    def __init__(self, name) -> None:
+    def __init__(self, name: Symbol) -> None:
         super().__init__()
         self.name = name
         self.arguments = []
@@ -62,6 +62,19 @@ class Method(AstNode):
             self.return_values = [retval]
         else:
             self.return_values.append(retval)
+
+
+class Struct(AstNode):
+    name: Symbol
+    fields: List[VariableDeclaration]
+
+    def __init__(self, name: Symbol) -> None:
+        super().__init__()
+        self.name = name
+        self.fields = []
+
+    def add_variable(self, var_type: Type, var_name: Symbol) -> None:
+        self.fields.append(VariableDeclaration(var_type, var_name))
 
 
 class Interface(AstNode):
@@ -111,11 +124,22 @@ class Visitor:
             for retval in node.return_values:
                 retval.accept(self)
 
+    def visit_Struct(self, node: Struct) -> None:
+        node.name.accept(self)
+
+        for field in node.fields:
+            field.type.accept(self)
+            field.name.accept(self)
+
     def visit_Interface(self, node: Interface) -> None:
+        node.name.accept(self)
+
         for method in node.methods:
             method.accept(self)
 
     def visit_Namespace(self, node: Namespace) -> None:
+        node.name.accept(self)
+
         for elem in node.elements:
             elem.accept(self)
 

@@ -3,8 +3,11 @@
 import argparse
 from sidl.lexer import Lexer
 from sidl.parser import Parser, ParsingException
+from sidl.compiler import CppSourceCompiler, CppHeaderCompiler
+from sidl.utils import PrettyPrinter
 
-if __name__ == "__main__":
+
+def main():
     parser = argparse.ArgumentParser(description="protorpc Small IDL compiler")
     parser.add_argument(
         "-o", "--outdir", help="Output directory for the generated files", default=""
@@ -33,5 +36,23 @@ if __name__ == "__main__":
         for line_idx in range(start, err.line):
             print(lines[line_idx])
 
-        print(" "*(err.col - 1) + "^")
+        print(" " * (err.col - 1) + "^")
         print(f"{args.idl_file}:{err.line}:{err.col}: {err.message}")
+
+    # TODO: Type checking (allowed generic types)
+    # TODO: Actual compilation
+    cpp_compiler = CppSourceCompiler()
+    cpp_compiler.visit(root)
+
+    print("-- C++ implementation --")
+    print(cpp_compiler.data)
+
+    hh_compiler = CppHeaderCompiler()
+    hh_compiler.visit(root)
+
+    print("-- C++ header --")
+    print(hh_compiler.data)
+
+
+if __name__ == "__main__":
+    main()

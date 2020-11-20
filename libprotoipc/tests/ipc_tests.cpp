@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 
 #include "protoipc/port.hh"
+#include "protoipc/router.hh"
 
 TEST(ipc_test, simple_send)
 {
@@ -66,6 +67,52 @@ TEST(ipc_test, send_huge)
     ASSERT_EQ(received.payload, sent.payload);
 
     sending_thread.join();
+}
+
+TEST(ipc_test, router_simple)
+{
+    int client_a[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_DGRAM, 0, client_a), 0);
+
+    int client_b[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_DGRAM, 0, client_b), 0);
+
+    ipc::Port client_router_a = ipc::Port(client_a[0]);
+    ipc::Port router_client_a = ipc::Port(client_a[1]);
+    ipc::Port client_router_b = ipc::Port(client_b[0]);
+    ipc::Port router_client_b = ipc::Port(client_b[1]);
+
+    ipc::Router router;
+    ipc::PortId client_a_id = router.add_port(router_client_a);
+    ipc::PortId client_b_id = router.add_port(router_client_b);
+
+    // Message from client a to client b
+    std::vector<std::uint8_t> payload = { 0x41, 0x42, 0x43 };
+
+    ipc::Message test;
+    test.destination = client_b_id;
+    test.payload = payload;
+
+    std::thread send_message([&]() {
+        client_router_a.send(test);
+    });
+
+    std::thread router_thread([&]() {
+        router.loop();
+    });
+
+    // Leaking threads
+    router_thread.detach();
+    send_message.join();
+
+    // We should receive the message with destination changed to client_a as it
+    // passed through the router.
+    ipc::Message received;
+    ipc::PortError error = client_router_b.receive(received);
+
+    ASSERT_EQ(error, ipc::PortError::Ok);
+    ASSERT_EQ(received.destination, client_a_id);
+    ASSERT_EQ(received.payload, payload);
 }
 
 #ifdef __linux__

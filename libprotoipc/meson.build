@@ -1,7 +1,10 @@
 protoipc_sources = []
 
 if build_machine.system() == 'linux'
-  protoipc_sources += ['src/linux_port.cpp']
+  protoipc_sources += [
+    'src/linux_port.cpp',
+    'src/linux_router.cpp'
+  ]
 else
   error('Unsupported os: @0@'.format(build_machine.system()))
 endif
@@ -10,7 +13,7 @@ protoipc_headers = include_directories('include')
 
 protoipc_library = library('protoipc', protoipc_sources,
   include_directories: protoipc_headers,
-  install: true
+  install: true,
 )
 
 protoipc_dep = declare_dependency(link_with: protoipc_library,
@@ -18,7 +21,9 @@ protoipc_dep = declare_dependency(link_with: protoipc_library,
 )
 
 protoipc_install_headers = [
-  'include/protoipc/port.hh'
+  'include/protoipc/port.hh',
+  'include/protoipc/message.hh',
+  'include/protoipc/router.hh'
 ]
 
 pkg = import('pkgconfig')

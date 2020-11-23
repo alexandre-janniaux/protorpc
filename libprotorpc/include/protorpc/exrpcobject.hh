@@ -7,12 +7,12 @@
 
 namespace rpc
 {
-    class Channel;
+    class ExChannel;
 
     class ExRpcObject
     {
     public:
-        ExRpcObject(Channel* chan, std::uint64_t id);
+        ExRpcObject(ExChannel* chan, std::uint64_t id);
 
         const std::uint64_t id()
         {
@@ -20,7 +20,7 @@ namespace rpc
         }
 
     protected:
-        Channel* channel_;
+        ExChannel* channel_;
 
     private:
         std::uint64_t object_id_;
@@ -29,7 +29,7 @@ namespace rpc
     class ExRpcProxy : public ExRpcObject
     {
     public:
-        ExRpcProxy(Channel* chan, std::uint64_t id, std::uint64_t remote_port, std::uint64_t remote_id);
+        ExRpcProxy(ExChannel* chan, std::uint64_t id, std::uint64_t remote_port, std::uint64_t remote_id);
 
         std::uint64_t remote_port() const
         {
@@ -49,8 +49,8 @@ namespace rpc
     class ExRpcReceiver : public ExRpcObject
     {
     public:
-        ExRpcReceiver(Channel* chan, std::uint64_t id);
-        virtual ~ExRpcReceiver();
+        ExRpcReceiver(ExChannel* chan, std::uint64_t id);
+        virtual ~ExRpcReceiver() {};
 
         /**
          * Handler called by the channel when a message received for the given
@@ -60,10 +60,10 @@ namespace rpc
     };
 
     template <typename T>
-    using Receiver = std::shared_ptr<std::enable_if_t<std::is_base_of_v<ExRpcReceiver, T>, T>>;
+    using ExReceiver = std::shared_ptr<std::enable_if_t<std::is_base_of_v<ExRpcReceiver, T>, T>>;
 
     template <typename T>
-    using Proxy = std::shared_ptr<std::enable_if_t<std::is_base_of_v<ExRpcProxy, T>, T>>;
+    using ExProxy = std::shared_ptr<std::enable_if_t<std::is_base_of_v<ExRpcProxy, T>, T>>;
 }
 
 #endif

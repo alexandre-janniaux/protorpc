@@ -1,4 +1,5 @@
 #include <stdexcept>
+#include "protorpc/serializer.hh"
 #include "protorpc/unserializer.hh"
 #include "protorpc/exchannel.hh"
 
@@ -10,14 +11,6 @@ using PendingRpcMessage = ExChannel::PendingRpcMessage;
 ExChannel::ExChannel(std::uint64_t port_id, ipc::Port port)
     : port_id_(port_id), port_(port)
 {}
-
-std::uint64_t ExChannel::next_id_()
-{
-    while (receivers_.find(current_id_) != receivers_.end())
-        current_id_++;
-
-    return current_id_;
-}
 
 PendingRpcMessage ExChannel::next_message_()
 {
@@ -37,20 +30,15 @@ PendingRpcMessage ExChannel::next_message_()
         Unserializer u(std::move(msg.payload));
 
         bool status = true;
-        std::uint64_t payload_size = 0;
+        std::vector<std::uint8_t> payload;
 
         status &= u.unserialize(&result.source);
         status &= u.unserialize(&result.destination);
         status &= u.unserialize(&result.opcode);
-        status &= u.unserialize(&payload_size);
+        status &= u.unserialize(&result.payload);
 
         if (!status)
             throw std::runtime_error("Could not decode rpc message header");
-
-        result.payload = u.get_remaining();
-
-        if (result.payload.size() != payload_size)
-            throw std::runtime_error("Payload has invalid size");
 
         // We patch the rpc::Message to indicate the source object.
         pending.destination_object = result.destination;
@@ -85,11 +73,50 @@ void ExChannel::loop()
 
 bool ExChannel::send_message(std::uint64_t remote_port, rpc::Message& msg)
 {
-    return true;
+    ipc::Message ipc_msg;
+
+    // This is the ipc layer, destination is remote process id
+    ipc_msg.destination = remote_port;
+    ipc_msg.handles = std::move(msg.handles);
+
+    // Encoding the rpc::Message data
+    rpc::Serializer s;
+    s.serialize(msg.source);
+    s.serialize(msg.destination);
+    s.serialize(msg.opcode);
+
+    // payload_size is encoded as part of the vector
+    s.serialize(msg.payload);
+
+    ipc_msg.payload = s.get();
+
+    ipc::PortError error = port_.send(ipc_msg);
+
+    // TODO: Return a more explicit error than just "failed"
+    return error == ipc::PortError::Ok;
 }
 
 bool ExChannel::send_request(std::uint64_t remote_port, rpc::Message& msg, rpc::Message& result)
 {
+    if (!send_message(remote_port, msg))
+        return false;
+
+    for (;;)
+    {
+        PendingRpcMessage pending = next_message_();
+
+        // We have to check the destination because next_message_ swaps source and destination ids
+        // on message arrival.
+        if (pending.message.destination == msg.destination && pending.message.opcode == msg.opcode &&
+                remote_port == pending.source_port)
+        {
+            result = std::move(pending.message);
+            break;
+        }
+
+        message_queue_.push_back(std::move(pending));
+    }
+
     return true;
 }
 

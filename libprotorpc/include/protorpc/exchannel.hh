@@ -4,6 +4,7 @@
 #include <memory>
 #include <deque>
 #include <unordered_map>
+#include <unordered_set>
 #include "protoipc/port.hh"
 #include "protorpc/message.hh"
 #include "protorpc/exrpcobject.hh"
@@ -23,40 +24,25 @@ namespace rpc
         ExChannel(std::uint64_t port_id, ipc::Port port);
 
         /**
-         * Binds a receiver to the current channel using a specific id.
-         * XXX: It will overwrite an object if there is an id collision.
+         * Binds a receiver to the current channel.
          */
         template <typename T>
-        Receiver<T> bind(std::uint64_t object_id)
+        ExReceiver<T> bind()
         {
-            Receiver<T> object = std::make_shared<T>(this, object_id);
-            receivers_[object_id] = object;
+            ExReceiver<T> object = std::make_shared<T>(this, current_id_++);
+            receivers_[object->id()] = object;
 
             return object;
         }
 
         /**
-         * Binds a proxy to the current channel with a random id.
+         * Binds a proxy to the current channel.
          */
         template <typename T>
-        Receiver<T> bind()
+        ExProxy<T> bind(std::uint64_t remote_port, std::uint64_t remote_id)
         {
-            std::uint64_t id = next_id_();
-            return bind<T>(id);
-        }
-
-        template <typename T>
-        Proxy<T> bind(std::uint64_t object_id, std::uint64_t remote_port, std::uint64_t remote_id)
-        {
-            Proxy<T> object = std::make_shared<T>(this, object_id, remote_port, remote_id);
+            ExProxy<T> object = std::make_shared<T>(this, current_id_++, remote_port, remote_id);
             return object;
-        }
-
-        template <typename T>
-        Proxy<T> bind(std::uint64_t remote_port, std::uint64_t remote_id)
-        {
-            std::uint64_t id = next_id_();
-            return bind<T>(id, remote_port, remote_id);
         }
 
         /**
@@ -76,9 +62,6 @@ namespace rpc
         bool send_request(std::uint64_t remote_port, rpc::Message& msg, rpc::Message& result);
 
     private:
-        // Gets the next available object id
-        std::uint64_t next_id_();
-
         std::uint64_t port_id_;
         ipc::Port port_;
         std::uint64_t current_id_ = 0;

@@ -145,3 +145,20 @@ def test_parse_interface_1():
 
     assert len(intf.methods) == 2
     assert intf.name.value == "File"
+
+
+def test_parse_interface_2():
+    idl_example = """
+    interface File {
+        close();
+    }
+    """
+
+    lex = Lexer(idl_example)
+    p = Parser(lex)
+
+    intf = p.parse_interface()
+
+    assert len(intf.methods) == 1
+    close = intf.methods[0]
+    assert close.return_values is None

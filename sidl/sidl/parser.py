@@ -107,7 +107,7 @@ class Parser:
 
         arrow_tok = self._lexer.peek()
 
-        if arrow_tok.type == TokenType.Eof:
+        if arrow_tok.type == TokenType.Eof or arrow_tok.type != TokenType.Arrow:
             return m
 
         if arrow_tok.type != TokenType.Arrow:

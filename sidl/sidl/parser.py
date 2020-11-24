@@ -43,22 +43,16 @@ class Parser:
         return token
 
     def _parse_var_decl(self) -> VariableDeclaration:
-        var_type = self._eof_next()
-
-        if var_type.type != TokenType.Symbol:
-            raise ParsingException(f"Expected a symbol but got '{var_type.value}'",
-                    var_type.position.line, var_type.position.col)
-
+        var_type = self.parse_type()
         var_name = self._eof_next()
 
         if var_name.type != TokenType.Symbol:
             raise ParsingException(f"Expected a symbol but got '{var_name.value}'",
                     var_name.position.line, var_name.position.col)
 
-        arg_type = Type(var_type.value)
         arg_name = Symbol(var_name.value)
 
-        return VariableDeclaration(arg_type, arg_name)
+        return VariableDeclaration(var_type, arg_name)
 
     def _parse_variable_pack(self) -> List[VariableDeclaration]:
         """
@@ -130,6 +124,7 @@ class Parser:
                             n.position.line, n.position.col)
                 continue
             elif n.type == TokenType.RGeneric:
+                self._lexer.next()
                 break
             else:
                 raise ParsingException(f"Expecting ',' or '>' but got '{n.value}'",

@@ -1,6 +1,6 @@
 import pytest
 from sidl.lexer import TokenType, Token, Lexer
-from sidl.parser import Parser
+from sidl.parser import Parser, ParsingException
 from sidl.utils import PrettyPrinter
 
 
@@ -211,3 +211,13 @@ def test_parse_generics_3():
 
     assert ty.value == "T"
     assert len(ty.generics) == 0
+
+
+def test_parse_generics_4():
+    idl_example = "T<A,>"
+
+    lex = Lexer(idl_example)
+    p = Parser(lex)
+
+    with pytest.raises(ParsingException):
+        p.parse_type()

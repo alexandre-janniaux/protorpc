@@ -123,6 +123,11 @@ class Parser:
 
             if n.type == TokenType.Comma:
                 self._lexer.next()
+                n = self._eof_peek()
+
+                if n.type == TokenType.RGeneric:
+                    raise ParsingException("Unexpected end of generic type declaration",
+                            n.position.line, n.position.col)
                 continue
             elif n.type == TokenType.RGeneric:
                 break

@@ -42,12 +42,13 @@ def main():
         print("-- Proxy source output --")
         print(proxy_compiler.data)
     except SidlException as err:
-        start = max(err.line - 3, 0)
+        start = max(err.line - 10, 0)
 
         for line_idx in range(start, err.line):
             print(lines[line_idx])
 
         print(" " * (err.col - 1) + "^")
+
         print(f"{args.idl_file}:{err.line}:{err.col}: {err.message}")
 
 

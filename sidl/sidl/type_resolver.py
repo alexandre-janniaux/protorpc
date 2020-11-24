@@ -1,5 +1,5 @@
-from typing import Dict
-from sidl.ast import Visitor, Interface, Struct, Type
+from typing import Dict, Set
+from sidl.ast import Visitor, Interface, Struct, Type, Method
 from sidl.utils import SidlException
 
 
@@ -10,6 +10,8 @@ class TypeResolver(Visitor):
     """
 
     _defined_types: Dict[str, str]
+    _defined_interfaces: Set[str]
+    _defined_methods: Set[str]
     _type_depth: int
 
     def __init__(self):
@@ -32,6 +34,8 @@ class TypeResolver(Visitor):
 
         # Current depth inside the type (used for generic types).
         self._type_depth = 0
+        self._defined_interfaces = set()
+        self._defined_methods = set()
 
     def visit_Type(self, node: Type) -> None:
         # Container types and their number of arguments
@@ -71,10 +75,31 @@ class TypeResolver(Visitor):
         if struct_name in self._defined_types:
             raise SidlException(f"Redefinition of type: {struct_name}", *node.position)
 
-        for field in node.fields:
-            field.accept(self)
+        super().visit_Struct(node)
 
         self._defined_types[struct_name] = struct_name
+
+    def visit_Interface(self, node: Interface) -> None:
+        intf_name = node.name.value
+
+        if intf_name in self._defined_types:
+            raise SidlException(f"Redefinition of type to interface: {intf_name}", *node.position)
+
+        if intf_name in self._defined_interfaces:
+            raise SidlException(f"Redefinition of interface: {intf_name}", *node.position)
+
+        self._defined_interfaces.add(intf_name)
+        self._defined_methods = set()
+
+        super().visit_Interface(node)
+
+    def visit_Method(self, node: Method) -> None:
+        method_name = node.name.value
+
+        if method_name in self._defined_methods:
+            raise SidlException(f"Redefinition of interface method: {method_name}", *node.position)
+
+        self._defined_methods.add(method_name)
 
     @property
     def types(self) -> Dict[str, str]:

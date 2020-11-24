@@ -40,7 +40,10 @@ class Parser:
         arg_name = Symbol(var_name.value)
         arg_name.position = (var_name.position.line, var_name.position.col)
 
-        return VariableDeclaration(var_type, arg_name)
+        vardecl = VariableDeclaration(var_type, arg_name)
+        vardecl.position = var_type.position
+
+        return vardecl
 
     def _parse_variable_pack(self) -> List[VariableDeclaration]:
         """

@@ -75,7 +75,17 @@ class TypeResolver(Visitor):
         if struct_name in self._defined_types:
             raise SidlException(f"Redefinition of type: {struct_name}", *node.position)
 
-        super().visit_Struct(node)
+        defined_fields: Set[str] = set()
+
+        for field in node.fields:
+            field_name = field.name.value
+
+            if field_name in defined_fields:
+                raise SidlException(f"Redefinition of struct field: {field_name}",
+                        *field.name.position)
+
+            defined_fields.add(field_name)
+            field.accept(self)
 
         self._defined_types[struct_name] = struct_name
 

@@ -5,6 +5,8 @@ from sidl.lexer import Lexer
 from sidl.parser import Parser, ParsingException
 from sidl.compiler import CppSourceCompiler, CppHeaderCompiler
 from sidl.utils import PrettyPrinter
+from sidl.proxy_compiler import ProxySourceCompiler
+from sidl.type_resolver import TypeResolver
 
 
 def main():
@@ -41,17 +43,26 @@ def main():
 
     # TODO: Type checking (allowed generic types)
     # TODO: Actual compilation
-    cpp_compiler = CppSourceCompiler()
-    cpp_compiler.visit(root)
+    # cpp_compiler = CppSourceCompiler()
+    # cpp_compiler.visit(root)
 
-    print("-- C++ implementation --")
-    print(cpp_compiler.data)
+    # print("-- C++ implementation --")
+    # print(cpp_compiler.data)
 
-    hh_compiler = CppHeaderCompiler()
-    hh_compiler.visit(root)
+    # hh_compiler = CppHeaderCompiler()
+    # hh_compiler.visit(root)
 
-    print("-- C++ header --")
-    print(hh_compiler.data)
+    # print("-- C++ header --")
+    # print(hh_compiler.data)
+
+    proxy_compiler = ProxySourceCompiler()
+    proxy_compiler.visit(root)
+
+    print("-- Proxy source output --")
+    print(proxy_compiler.data)
+
+    tr = TypeResolver()
+    tr.visit(root)
 
 
 if __name__ == "__main__":

@@ -162,3 +162,52 @@ def test_parse_interface_2():
     assert len(intf.methods) == 1
     close = intf.methods[0]
     assert close.return_values is None
+
+
+def test_parse_generics_1():
+    idl_example = "vec<optional<i64>>"
+
+    lex = Lexer(idl_example)
+    p = Parser(lex)
+
+    ty = p.parse_type()
+
+    assert ty.value == "vec"
+    assert len(ty.generics) == 1
+    assert ty.generics[0].value == "optional"
+    assert len(ty.generics[0].generics) == 1
+    assert ty.generics[0].generics[0].value == "i64"
+
+
+def test_parse_generics_2():
+    idl_example = "map<key, vec<map<k,v>>"
+
+    lex = Lexer(idl_example)
+    p = Parser(lex)
+
+    ty = p.parse_type()
+
+    assert ty.value == "map"
+    assert len(ty.generics) == 2
+
+    assert ty.generics[0].value == "key"
+    assert len(ty.generics[1].generics) == 1
+
+    m = ty.generics[1].generics[0]
+
+    assert m.value == "map"
+    assert len(m.generics) == 2
+    assert m.generics[0].value == "k"
+    assert m.generics[1].value == "v"
+
+
+def test_parse_generics_3():
+    idl_example = "T<>"
+
+    lex = Lexer(idl_example)
+    p = Parser(lex)
+
+    ty = p.parse_type()
+
+    assert ty.value == "T"
+    assert len(ty.generics) == 0

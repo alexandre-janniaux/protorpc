@@ -19,10 +19,19 @@ class AstNode:
 
 class Type(AstNode):
     value: str
+    generics: List['Type']
 
-    def __init__(self, value: str) -> None:
+    def __init__(self, value: str, generics: Optional[List['Type']] = None) -> None:
         super().__init__()
         self.value = value
+
+        if generics is not None:
+            self.generics = generics
+        else:
+            self.generics = []
+
+    def add_generic(self, generic: 'Type') -> None:
+        self.generics.append(generic)
 
 
 class Symbol(AstNode):

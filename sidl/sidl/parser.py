@@ -90,6 +90,48 @@ class Parser:
 
         return variable_pack
 
+    def parse_type(self) -> Type:
+        """
+        Simple type      : T or T<>
+        Generic container: T<T1, T2, ...>
+        """
+        ty_name = self._eof_next()
+
+        if ty_name.type != TokenType.Symbol:
+            raise ParsingException(f"Expected a symbol but got '{ty_name.value}'",
+                    ty_name.position.line, ty_name.position.col)
+
+        ty = Type(ty_name.value)
+        lgen = self._eof_peek()
+
+        if lgen.type != TokenType.LGeneric:
+            return ty
+
+        self._lexer.next()
+
+        while True:
+            n = self._eof_peek()
+
+            # '>'
+            if n.type == TokenType.RGeneric:
+                self._lexer.next()
+                break
+
+            ty.add_generic(self.parse_type())
+
+            n = self._eof_peek()
+
+            if n.type == TokenType.Comma:
+                self._lexer.next()
+                continue
+            elif n.type == TokenType.RGeneric:
+                break
+            else:
+                raise ParsingException(f"Expecting ',' or '>' but got '{n.value}'",
+                        n.position.line, n.position.col)
+
+        return ty
+
     def parse_method(self) -> Method:
         """
         unidirectional message: fn(args...);

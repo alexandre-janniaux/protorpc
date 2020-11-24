@@ -2,9 +2,9 @@
 
 import argparse
 from sidl.lexer import Lexer
-from sidl.parser import Parser, ParsingException
+from sidl.parser import Parser
 from sidl.compiler import CppSourceCompiler, CppHeaderCompiler
-from sidl.utils import PrettyPrinter
+from sidl.utils import PrettyPrinter, SidlException
 from sidl.proxy_compiler import ProxySourceCompiler
 from sidl.type_resolver import TypeResolver
 
@@ -32,7 +32,16 @@ def main():
 
     try:
         root = p.parse()
-    except ParsingException as err:
+
+        tr = TypeResolver()
+        tr.visit(root)
+
+        proxy_compiler = ProxySourceCompiler(args.idl_file, tr.types)
+        proxy_compiler.visit(root)
+
+        print("-- Proxy source output --")
+        print(proxy_compiler.data)
+    except SidlException as err:
         start = max(err.line - 3, 0)
 
         for line_idx in range(start, err.line):
@@ -40,29 +49,6 @@ def main():
 
         print(" " * (err.col - 1) + "^")
         print(f"{args.idl_file}:{err.line}:{err.col}: {err.message}")
-
-    # TODO: Type checking (allowed generic types)
-    # TODO: Actual compilation
-    # cpp_compiler = CppSourceCompiler()
-    # cpp_compiler.visit(root)
-
-    # print("-- C++ implementation --")
-    # print(cpp_compiler.data)
-
-    # hh_compiler = CppHeaderCompiler()
-    # hh_compiler.visit(root)
-
-    # print("-- C++ header --")
-    # print(hh_compiler.data)
-    tr = TypeResolver()
-    tr.visit(root)
-
-    proxy_compiler = ProxySourceCompiler(args.idl_file, tr.types)
-    proxy_compiler.visit(root)
-
-    print("-- Proxy source output --")
-    print(proxy_compiler.data)
-
 
 
 if __name__ == "__main__":

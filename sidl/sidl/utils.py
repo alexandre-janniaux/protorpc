@@ -11,6 +11,20 @@ from sidl.ast import (
 )
 
 
+class SidlException(Exception):
+    message: str
+    line: int
+    col: int
+
+    def __init__(self, message: str, line: int, col: int) -> None:
+        self.message = message
+        self.line = line
+        self.col = col
+
+    def __str__(self) -> str:
+        return f"Error at {self.line}:{self.col} : {self.message}"
+
+
 class IndentedWriter:
     """
     Helper object for pretty printing.

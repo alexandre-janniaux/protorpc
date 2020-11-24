@@ -1,20 +1,7 @@
 from typing import List
 from sidl.lexer import TokenType, Token, Lexer
 from sidl.ast import AstNode, Namespace, Interface, Symbol, Type, VariableDeclaration, Method, Struct
-
-
-class ParsingException(Exception):
-    message: str
-    line: int
-    col: int
-
-    def __init__(self, message: str, line: int, col: int) -> None:
-        self.message = message
-        self.line = line
-        self.col = col
-
-    def __str__(self) -> str:
-        return f"Parsing error at {self.line}:{self.col} : {self.message}"
+from sidl.utils import SidlException
 
 
 class Parser:
@@ -28,7 +15,7 @@ class Parser:
         token = self._lexer.next()
 
         if token.type == TokenType.Eof:
-            raise ParsingException("Unexpected eof", token.position.line,
+            raise SidlException("Unexpected eof", token.position.line,
                     token.position.col)
 
         return token
@@ -37,7 +24,7 @@ class Parser:
         token = self._lexer.peek()
 
         if token.type == TokenType.Eof:
-            raise ParsingException("Unexpected eof", token.position.line,
+            raise SidlException("Unexpected eof", token.position.line,
                     token.position.col)
 
         return token
@@ -47,7 +34,7 @@ class Parser:
         var_name = self._eof_next()
 
         if var_name.type != TokenType.Symbol:
-            raise ParsingException(f"Expected a symbol but got '{var_name.value}'",
+            raise SidlException(f"Expected a symbol but got '{var_name.value}'",
                     var_name.position.line, var_name.position.col)
 
         arg_name = Symbol(var_name.value)
@@ -61,7 +48,7 @@ class Parser:
         lparent_tok = self._eof_next()
 
         if lparent_tok.type != TokenType.LParen:
-            raise ParsingException(f"Expected '(' but got '{lparent_tok.value}'",
+            raise SidlException(f"Expected '(' but got '{lparent_tok.value}'",
                     lparent_tok.position.line, lparent_tok.position.col)
 
         variable_pack: List[VariableDeclaration] = []
@@ -92,10 +79,12 @@ class Parser:
         ty_name = self._eof_next()
 
         if ty_name.type != TokenType.Symbol:
-            raise ParsingException(f"Expected a type name but got '{ty_name.value}'",
+            raise SidlException(f"Expected a type name but got '{ty_name.value}'",
                     ty_name.position.line, ty_name.position.col)
 
         ty = Type(ty_name.value)
+        ty.position = (ty_name.position.line, ty_name.position.col)
+
         lgen = self._eof_peek()
 
         if lgen.type != TokenType.LGeneric:
@@ -120,14 +109,14 @@ class Parser:
                 n = self._eof_peek()
 
                 if n.type == TokenType.RGeneric:
-                    raise ParsingException("Unexpected end of generic type declaration",
+                    raise SidlException("Unexpected end of generic type declaration",
                             n.position.line, n.position.col)
                 continue
             elif n.type == TokenType.RGeneric:
                 self._lexer.next()
                 break
             else:
-                raise ParsingException(f"Expecting ',' or '>' but got '{n.value}'",
+                raise SidlException(f"Expecting ',' or '>' but got '{n.value}'",
                         n.position.line, n.position.col)
 
         return ty
@@ -140,7 +129,7 @@ class Parser:
         name_tok = self._eof_next()
 
         if name_tok.type != TokenType.Symbol:
-            raise ParsingException(f"Expected function name but got '{name_tok.value}'",
+            raise SidlException(f"Expected function name but got '{name_tok.value}'",
                     name_tok.position.line, name_tok.position.col)
 
         m = Method(Symbol(name_tok.value))
@@ -153,7 +142,7 @@ class Parser:
             return m
 
         if arrow_tok.type != TokenType.Arrow:
-            raise ParsingException(f"Expected '->' but got '{arrow_tok.value}'",
+            raise SidlException(f"Expected '->' but got '{arrow_tok.value}'",
                     arrow_tok.position.line, arrow_tok.position.col)
 
         self._lexer.next()
@@ -165,19 +154,19 @@ class Parser:
         struct_tok = self._eof_next()
 
         if struct_tok.type != TokenType.Struct:
-            raise ParsingException(f"Expected 'struct' but got '{struct_tok.value}'",
+            raise SidlException(f"Expected 'struct' but got '{struct_tok.value}'",
                     struct_tok.position.line, name_tok.position.col)
 
         name_tok = self._eof_next()
 
         if name_tok.type != TokenType.Symbol:
-            raise ParsingException(f"Expected struct name but got '{name_tok.value}'",
+            raise SidlException(f"Expected struct name but got '{name_tok.value}'",
                     name_tok.position.line, name_tok.position.col)
 
         lbrack_tok = self._eof_next()
 
         if lbrack_tok.type != TokenType.LBrack:
-            raise ParsingException(f"Expected '{{' but got '{lbrack_tok.value}'",
+            raise SidlException(f"Expected '{{' but got '{lbrack_tok.value}'",
                     lbrack_tok.position.line, lbrack_tok.position.col)
 
         structure = Struct(Symbol(name_tok.value))
@@ -194,7 +183,7 @@ class Parser:
             next_tok = self._eof_next()
 
             if next_tok.type != TokenType.Semicolon:
-                raise ParsingException(f"Expected ';' but go '{next_tok.value}'",
+                raise SidlException(f"Expected ';' but go '{next_tok.value}'",
                         next_tok.position.line, next_tok.position.col)
 
             next_tok = self._eof_peek()
@@ -209,19 +198,19 @@ class Parser:
         int_tok = self._eof_next()
 
         if int_tok.type != TokenType.Interface:
-            raise ParsingException(f"Expected 'interface' but got '{int_tok.value}'",
+            raise SidlException(f"Expected 'interface' but got '{int_tok.value}'",
                     int_tok.position.line, int_tok.position.col)
 
         int_tok_name = self._eof_next()
 
         if int_tok_name.type != TokenType.Symbol:
-            raise ParsingException(f"Expected '{TokenType.Symbol}' but got '{int_tok_name.type}'",
+            raise SidlException(f"Expected '{TokenType.Symbol}' but got '{int_tok_name.type}'",
                     int_tok_name.position.kine, int_tok_name.position.col)
 
         lbrack_tok = self._eof_next()
 
         if lbrack_tok.type != TokenType.LBrack:
-            raise ParsingException(f"Expected '{{' but got '{lbrack_tok.value}'",
+            raise SidlException(f"Expected '{{' but got '{lbrack_tok.value}'",
                     lbrack_tok.position.line, lbrack_tok.position.col)
 
         intf = Interface(Symbol(int_tok_name.value))
@@ -238,7 +227,7 @@ class Parser:
             next_tok = self._eof_next()
 
             if next_tok.type != TokenType.Semicolon:
-                raise ParsingException(f"Expected ';' but go '{next_tok.value}'",
+                raise SidlException(f"Expected ';' but go '{next_tok.value}'",
                         next_tok.position.line, next_tok.position.col)
 
             next_tok = self._eof_peek()
@@ -253,13 +242,13 @@ class Parser:
         ns_tok = self._eof_next()
 
         if ns_tok.type != TokenType.Namespace:
-            raise ParsingException(f"Expected 'namespace' but got '{ns_tok.value}'",
+            raise SidlException(f"Expected 'namespace' but got '{ns_tok.value}'",
                     ns_tok.position.line, ns_tok.position.col)
 
         ns_name_tok = self._eof_next()
 
         if ns_name_tok.type != TokenType.Symbol:
-            raise ParsingException(f"Expected {TokenType.Symbol} but got {ns_tok.type}",
+            raise SidlException(f"Expected {TokenType.Symbol} but got {ns_tok.type}",
                     ns_name_tok.position.line, ns_name_tok.position.col)
 
         ns = Namespace(Symbol(ns_name_tok.value))
@@ -268,7 +257,7 @@ class Parser:
         lbrack_tok = self._eof_next()
 
         if lbrack_tok.type != TokenType.LBrack:
-            raise ParsingException(f"Expected '{{' but got '{lbrack_tok.value}'",
+            raise SidlException(f"Expected '{{' but got '{lbrack_tok.value}'",
                     lbrack_tok.position.line, lbrack_tok.position.col)
 
         while True:
@@ -285,7 +274,7 @@ class Parser:
             elif field_tok.type == TokenType.Interface:
                 ns.add_element(self.parse_interface())
             else:
-                raise ParsingException(f"Expected 'struct' or 'interface' but got '{field_tok.value}'",
+                raise SidlException(f"Expected 'struct' or 'interface' but got '{field_tok.value}'",
                         field_tok.position.line, field_tok.position.col)
 
         return ns

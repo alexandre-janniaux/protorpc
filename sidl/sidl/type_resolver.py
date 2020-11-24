@@ -1,5 +1,6 @@
 from typing import Dict
 from sidl.ast import Visitor, Interface, Struct, Type
+from sidl.utils import SidlException
 
 
 class TypeResolver(Visitor):
@@ -40,21 +41,22 @@ class TypeResolver(Visitor):
         }
 
         if node.value not in self._defined_types:
-            raise Exception(f"Unknown type: {node.value}")
+            raise SidlException(f"Unknown type: {node.value}", *node.position)
 
         if len(node.generics) and node.value not in container_types:
-            raise Exception(f"Type {node.value} is not a generic container")
+            raise SidlException(f"Type {node.value} is not a generic container", *node.position)
 
         # Handle is a special type and cannot be contained
         if node.value == "handle" and self._type_depth > 0:
-            raise Exception("Handle type cannot be contained")
+            raise SidlException("Handle type cannot be contained", *node.position)
 
         # Checking container argument arity
         if node.value in container_types:
             expected = container_types[node.value]
 
             if len(node.generics) != expected:
-                raise Exception(f"Expected {expected} generic type arguments but {len(node.generics)} where provided")
+                raise SidlException(f"Expected {expected} generic type arguments but {len(node.generics)} where provided",
+                        *node.position)
 
         self._type_depth += 1
 
@@ -67,7 +69,7 @@ class TypeResolver(Visitor):
         struct_name = node.name.value
 
         if struct_name in self._defined_types:
-            raise Exception(f"Redefinition of type: {struct_name}")
+            raise SidlException(f"Redefinition of type: {struct_name}", *node.position)
 
         for field in node.fields:
             field.accept(self)

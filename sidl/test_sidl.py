@@ -1,6 +1,6 @@
 import pytest
 from sidl.lexer import TokenType, Token, Lexer
-from sidl.parser import Parser, ParsingException
+from sidl.parser import Parser, SidlException
 from sidl.utils import PrettyPrinter
 
 
@@ -180,7 +180,7 @@ def test_parse_generics_1():
 
 
 def test_parse_generics_2():
-    idl_example = "map<key, vec<map<k,v>>"
+    idl_example = "map<key, vec<map<k,v>>>"
 
     lex = Lexer(idl_example)
     p = Parser(lex)
@@ -219,5 +219,5 @@ def test_parse_generics_4():
     lex = Lexer(idl_example)
     p = Parser(lex)
 
-    with pytest.raises(ParsingException):
+    with pytest.raises(SidlException):
         p.parse_type()

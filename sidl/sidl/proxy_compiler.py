@@ -82,9 +82,14 @@ class ProxySourceCompiler(Visitor):
 
         # Serializing the arguments
         for e in node.arguments:
-            self._writer.write("s.serialize(")
-            e.name.accept(self)
-            self._writer.write_line(");")
+            if e.type.value == "handle":
+                self._writer.write("message.handles.push_back(")
+                e.name.accept(self)
+                self._writer.write_line(");")
+            else:
+                self._writer.write("s.serialize(")
+                e.name.accept(self)
+                self._writer.write_line(");")
 
         self._writer.write_line("message.payload = s.get();")
 
@@ -100,14 +105,29 @@ class ProxySourceCompiler(Visitor):
 
             self._writer.write_line("rpc::Unserializer u(std::move(result.payload));")
 
-            for e in node.return_values:
-                self._writer.write("if (!u.unserialize(")
-                e.name.accept(self)
-                self._writer.write_line(")")
+            # Index inside the received handles vector
+            handle_index = 0
 
-                self._writer.indent()
-                self._writer.write_line("return false;")
-                self._writer.deindent()
+            for e in node.return_values:
+                if e.type.value == "handle":
+                    self._writer.write_line(f"if ({handle_index} >= result.handles.size())")
+                    self._writer.indent()
+                    self._writer.write_line("return false;")
+                    self._writer.deindent()
+
+                    self._writer.write("*")
+                    e.name.accept(self)
+                    self._writer.write_line(f" = result.handles[{handle_index}];")
+
+                    handle_index += 1
+                else:
+                    self._writer.write("if (!u.unserialize(")
+                    e.name.accept(self)
+                    self._writer.write_line(")")
+
+                    self._writer.indent()
+                    self._writer.write_line("return false;")
+                    self._writer.deindent()
 
             self._writer.write_line("return true;")
 

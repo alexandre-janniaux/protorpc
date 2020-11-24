@@ -1,3 +1,4 @@
+from typing import Dict
 from sidl.utils import IndentedWriter
 from sidl.ast import Visitor, Symbol, Method, Type, Interface, Namespace, VariableDeclaration, Struct
 
@@ -6,27 +7,38 @@ class ProxySourceCompiler(Visitor):
     _writer: IndentedWriter
     _current_interface: str
     _current_opcode: int
+    _types: Dict[str, str]
 
-    def __init__(self, indent=4) -> None:
+    def __init__(self, filename: str, types: Dict[str, str], indent: int = 4) -> None:
         self._writer = IndentedWriter(indent)
         self._current_opcode = 0
+        self._types = types
+
+        # mandatory includes
+        self._writer.write_line("#include \"protorpc/serializer.hh\"")
+        self._writer.write_line("#include \"protorpc/unserializer.hh\"")
+        self._writer.write_line(f"#include \"{filename}.hh\"")
+        self._writer.write_line("")
 
     def visit_Type(self, node: Type) -> None:
-        type_conversion = {
-            "bool": "bool",
-            "u8": "std::uint8_t",
-            "u16": "std::uint16_t",
-            "u32": "std::uint32_t",
-            "u64": "std::uint64_t",
-            "i8": "std::int8_t",
-            "i16": "std::int16_t",
-            "i32": "std::int32_t",
-            "i64": "std::int64_t",
-            "string": "std::string",
-        }
-
-        cpp_type = type_conversion.get(node.value, node.value)
+        """
+        Converts a type to its C++ representation. We assume that the ast passed
+        the type checker checks and that everything is valid. If in any case a
+        type doesn't exist in the provided type checker mapping we let it as is.
+        """
+        cpp_type = self._types.get(node.value, node.value)
         self._writer.write(cpp_type)
+
+        if len(node.generics) > 0:
+            self._writer.write("<")
+
+            for i, e in enumerate(node.generics):
+                e.accept(self)
+
+                if i != len(node.generics) - 1:
+                    self._writer.write(", ")
+
+            self._writer.write(">")
 
     def visit_Symbol(self, node: Symbol) -> None:
         self._writer.write(node.value)
@@ -41,7 +53,7 @@ class ProxySourceCompiler(Visitor):
 
     def visit_Method(self, node: Method) -> None:
         # prototype generation
-        self._writer.write(f"bool {self._current_interface}::{node.name.value} (")
+        self._writer.write(f"bool {self._current_interface}::{node.name.value}(")
 
         for i, e in enumerate(node.arguments):
             e.accept(self)

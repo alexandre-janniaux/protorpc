@@ -33,9 +33,35 @@ class TypeResolver(Visitor):
         self._type_depth = 0
 
     def visit_Type(self, node: Type) -> None:
+        # Container types and their number of arguments
+        container_types = {
+            "vec": 1,
+            "optional": 1
+        }
+
         if node.value not in self._defined_types:
             raise Exception(f"Unknown type: {node.value}")
-        # Now resolve the type to its cpp equivalent
+
+        if len(node.generics) and node.value not in container_types:
+            raise Exception(f"Type {node.value} is not a generic container")
+
+        # Handle is a special type and cannot be contained
+        if node.value == "handle" and self._type_depth > 0:
+            raise Exception("Handle type cannot be contained")
+
+        # Checking container argument arity
+        if node.value in container_types:
+            expected = container_types[node.value]
+
+            if len(node.generics) != expected:
+                raise Exception(f"Expected {expected} generic type arguments but {len(node.generics)} where provided")
+
+        self._type_depth += 1
+
+        for ty in node.generics:
+            ty.accept(self)
+
+        self._type_depth -= 1
 
     def visit_Struct(self, node: Struct) -> None:
         struct_name = node.name.value
@@ -47,3 +73,7 @@ class TypeResolver(Visitor):
             field.accept(self)
 
         self._defined_types[struct_name] = struct_name
+
+    @property
+    def types(self) -> Dict[str, str]:
+        return self._defined_types

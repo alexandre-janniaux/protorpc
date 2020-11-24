@@ -92,7 +92,7 @@ class Parser:
         ty_name = self._eof_next()
 
         if ty_name.type != TokenType.Symbol:
-            raise ParsingException(f"Expected a symbol but got '{ty_name.value}'",
+            raise ParsingException(f"Expected a type name but got '{ty_name.value}'",
                     ty_name.position.line, ty_name.position.col)
 
         ty = Type(ty_name.value)

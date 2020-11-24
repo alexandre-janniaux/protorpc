@@ -54,15 +54,15 @@ def main():
 
     # print("-- C++ header --")
     # print(hh_compiler.data)
+    tr = TypeResolver()
+    tr.visit(root)
 
-    proxy_compiler = ProxySourceCompiler()
+    proxy_compiler = ProxySourceCompiler(args.idl_file, tr.types)
     proxy_compiler.visit(root)
 
     print("-- Proxy source output --")
     print(proxy_compiler.data)
 
-    tr = TypeResolver()
-    tr.visit(root)
 
 
 if __name__ == "__main__":

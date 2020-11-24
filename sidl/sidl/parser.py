@@ -38,6 +38,7 @@ class Parser:
                     var_name.position.line, var_name.position.col)
 
         arg_name = Symbol(var_name.value)
+        arg_name.position = (var_name.position.line, var_name.position.col)
 
         return VariableDeclaration(var_type, arg_name)
 

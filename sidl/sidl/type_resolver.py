@@ -99,7 +99,25 @@ class TypeResolver(Visitor):
         if method_name in self._defined_methods:
             raise SidlException(f"Redefinition of interface method: {method_name}", *node.position)
 
-        self._defined_methods.add(method_name)
+        defined_names: Set[str] = set()
+
+        for arg in node.arguments:
+            arg_name = arg.name.value
+
+            if arg_name in defined_names:
+                raise SidlException(f"Redefinition of argument: {arg_name}", *arg.name.position)
+
+            defined_names.add(arg.name.value)
+
+        if node.return_values:
+            for ret in node.return_values:
+                ret_name = ret.name.value
+
+                if ret_name in defined_names:
+                    raise SidlException(f"Redefinition of method argument: {ret_name}",
+                            *ret.name.position)
+
+                defined_names.add(ret_name)
 
     @property
     def types(self) -> Dict[str, str]:

@@ -24,6 +24,20 @@ def main():
 
     args = parser.parse_args()
 
+    # More setup
+    compile_header = True
+    compile_impl = True
+
+    if args.header_only and args.source_only:
+        pass
+    elif args.header_only:
+        compile_impl = False
+    elif args.source_only:
+        compile_header = False
+
+    impl_path = "./" + args.outdir + "/" + args.idl_file + ".cpp"
+    header_path = "./" + args.outdir + "/" + args.idl_file + ".hh"
+
     # XXX: Debug code
     data = open(args.idl_file, "r").read()
     lines = data.split("\n")
@@ -36,11 +50,16 @@ def main():
         tr = TypeResolver()
         tr.visit(root)
 
-        proxy_compiler = ProxySourceCompiler(args.idl_file, tr.types)
-        proxy_compiler.visit(root)
+        if compile_impl:
+            proxy_source_compiler = ProxySourceCompiler(args.idl_file, tr.types)
+            proxy_source_compiler.visit(root)
 
-        print("-- Proxy source output --")
-        print(proxy_compiler.data)
+            open(impl_path, "w").write(proxy_source_compiler.data)
+
+        if compile_header:
+            print("header compilation not implemented for now")
+            pass
+
     except SidlException as err:
         start = max(err.line - 10, 0)
 

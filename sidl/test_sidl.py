@@ -2,6 +2,7 @@ import pytest
 from sidl.lexer import TokenType, Token, Lexer
 from sidl.parser import Parser, SidlException
 from sidl.utils import PrettyPrinter
+from sidl.type_resolver import TypeResolver
 
 
 def test_parse_simple_1():
@@ -221,3 +222,73 @@ def test_parse_generics_4():
 
     with pytest.raises(SidlException):
         p.parse_type()
+
+
+def test_check_handle_contained_1():
+    idl_example = """
+    namespace test {
+        struct A {
+            vec<handle> v;
+        }
+    }
+    """
+
+    lex = Lexer(idl_example)
+    p = Parser(lex)
+    ast = p.parse()
+    tc = TypeResolver()
+
+    with pytest.raises(SidlException):
+        tc.visit(ast)
+
+
+def test_check_handle_contained_2():
+    idl_example = """
+    namespace test {
+        struct A {
+            handle fd;
+        }
+
+        struct B {
+            optional<A> a;
+        }
+    }
+    """
+
+    lex = Lexer(idl_example)
+    p = Parser(lex)
+    ast = p.parse()
+    tc = TypeResolver()
+
+    with pytest.raises(SidlException):
+        tc.visit(ast)
+
+
+def test_check_handle_contained_3():
+    idl_example = """
+    namespace test {
+        struct A {
+            handle fd;
+        }
+
+        struct B {
+            A a;
+        }
+
+        struct C {
+            B b;
+        }
+
+        struct D {
+            optional<C> c;
+        }
+    }
+    """
+
+    lex = Lexer(idl_example)
+    p = Parser(lex)
+    ast = p.parse()
+    tc = TypeResolver()
+
+    with pytest.raises(SidlException):
+        tc.visit(ast)

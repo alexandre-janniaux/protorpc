@@ -12,6 +12,7 @@ class TypeResolver(Visitor):
     _defined_types: Dict[str, str]
     _defined_interfaces: Set[str]
     _defined_methods: Set[str]
+    _handle_tainted: Set[str]
     _type_depth: int
 
     def __init__(self):
@@ -37,6 +38,10 @@ class TypeResolver(Visitor):
         self._defined_interfaces = set()
         self._defined_methods = set()
 
+        # Set of structures containing handles. These structures cannot be put
+        # inside containers.
+        self._handle_tainted = set()
+
     def visit_Type(self, node: Type) -> None:
         # Container types and their number of arguments
         container_types = {
@@ -53,6 +58,10 @@ class TypeResolver(Visitor):
         # Handle is a special type and cannot be contained
         if node.value == "handle" and self._type_depth > 0:
             raise SidlException("Handle type cannot be contained", *node.position)
+
+        if node.value in self._handle_tainted and self._type_depth > 0:
+            raise SidlException("Struct cannot be contained because it contains handles",
+                    *node.position)
 
         # Checking container argument arity
         if node.value in container_types:
@@ -79,10 +88,14 @@ class TypeResolver(Visitor):
 
         for field in node.fields:
             field_name = field.name.value
+            field_type = field.type.value
 
             if field_name in defined_fields:
                 raise SidlException(f"Redefinition of struct field: {field_name}",
                         *field.name.position)
+
+            if field_type == "handle" or field_type in self._handle_tainted:
+                self._handle_tainted.add(struct_name)
 
             defined_fields.add(field_name)
             field.accept(self)

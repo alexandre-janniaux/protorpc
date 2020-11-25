@@ -295,21 +295,22 @@ class ProxyHeaderCompiler(BaseCppCompiler):
                 if len(node.arguments) > 0:
                     self.writer.write(", ")
 
-                self.writer.write(f"{e.type.value}* {e.name.value}")
+                e.type.accept(self)
+                self.writer.write(f"* {e.name.value}")
 
         self.writer.write_line(");")
 
-    def visit_Interface(self, node: Interface) -> None:
+    def _compile_proxy_interface(self, node: Interface) -> None:
         interface_name = node.name.value
-        self.writer.write_line(f"class {interface_name}: public rpc::ExRpcProxy")
+        self.writer.write_line(f"class {interface_name}Proxy: public rpc::ExRpcProxy")
         self.writer.write_line("{")
         self.writer.write_line("public:")
         self.writer.indent()
 
         # Constructor
-        self.writer.write_line(f"{interface_name}(rpc::ExChannel* chan, std::uint64_t object_id, std::uint64_t remote_port, std::uint64_t remote_id)")
+        self.writer.write_line(f"{interface_name}Proxy(rpc::ExChannel* chan, std::uint64_t object_id, std::uint64_t remote_port, std::uint64_t remote_id)")
         self.writer.indent()
-        self.writer.write_line(f": {interface_name}(chan, object_id, remote_port, remote_id)")
+        self.writer.write_line(f": {interface_name}Proxy(chan, object_id, remote_port, remote_id)")
         self.writer.deindent()
         self.writer.write_line("{}")
 
@@ -319,6 +320,33 @@ class ProxyHeaderCompiler(BaseCppCompiler):
 
         self.writer.deindent()
         self.writer.write_line("};")
+
+    def _compile_receiver_interface(self, node: Interface) -> None:
+        interface_name = node.name.value
+        self.writer.write_line(f"class {interface_name}Receiver: public rpc::ExRpcReceiver")
+        self.writer.write_line("{")
+        self.writer.write_line("public:")
+        self.writer.indent()
+
+        # Constructor
+        self.writer.write_line(f"{interface_name}Receiver(rpc::ExChannel* chan, std::uint64_t object_id)")
+        self.writer.indent()
+        self.writer.write_line(f": {interface_name}Receiver(chan, object_id)")
+        self.writer.deindent()
+        self.writer.write_line("{}")
+
+        # on_message overload
+        self.writer.write_line("void on_message(std::uint64_t source_port, rprc::Message& message) override;")
+
+        for method in node.methods:
+            method.accept(self)
+
+        self.writer.deindent()
+        self.writer.write_line("};")
+
+    def visit_Interface(self, node: Interface) -> None:
+        self._compile_proxy_interface(node)
+        self._compile_receiver_interface(node)
 
     def visit_Struct(self, node: Struct) -> None:
         pass

@@ -50,7 +50,7 @@ namespace rpc
         std::vector<std::uint8_t> get()
         {
             auto ret = std::move(data_);
-            data_ = {};
+            data_.clear();
 
             return ret;
         }

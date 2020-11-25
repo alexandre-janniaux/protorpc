@@ -349,7 +349,18 @@ class ProxyHeaderCompiler(BaseCppCompiler):
         self._compile_receiver_interface(node)
 
     def visit_Struct(self, node: Struct) -> None:
-        pass
+        struct_name = node.name.value
+
+        self.writer.write_line(f"struct {struct_name}")
+        self.writer.write_line("{")
+        self.writer.indent()
+
+        for field in node.fields:
+            field.accept(self)
+            self.writer.write_line(";")
+
+        self.writer.deindent()
+        self.writer.write_line("}")
 
     @property
     def data(self) -> str:

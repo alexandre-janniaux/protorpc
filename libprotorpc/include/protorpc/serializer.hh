@@ -20,7 +20,11 @@ namespace rpc
 
     /*
      * struct serializable<Object> {
-     *     static void serialize(Object& obj, Serializer& s) { ... }
+     *     // Serialize fields to bytes
+     *     static void serialize(Object& obj, Serializer& s) { ... };
+     *
+     *     // Serialize the native handles
+     *     static void serialize(Object& obj, std::vector<int>& handles) { ... };
      * };
      */
 

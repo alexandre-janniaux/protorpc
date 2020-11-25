@@ -5,7 +5,7 @@ from sidl.lexer import Lexer
 from sidl.parser import Parser
 from sidl.compiler import CppSourceCompiler, CppHeaderCompiler
 from sidl.utils import PrettyPrinter, SidlException
-from sidl.proxy_compiler import ProxySourceCompiler
+from sidl.proxy_compiler import ProxySourceCompiler, ProxyHeaderCompiler
 from sidl.type_resolver import TypeResolver
 
 
@@ -51,10 +51,14 @@ def main():
         tr.visit(root)
 
         if compile_impl:
-            proxy_source_compiler = ProxySourceCompiler(args.idl_file, tr.types)
+            proxy_source_compiler = ProxySourceCompiler(tr.types)
             proxy_source_compiler.visit(root)
 
+            proxy_header_compiler = ProxyHeaderCompiler(tr.types)
+            proxy_header_compiler.visit(root)
+
             open(impl_path, "w").write(proxy_source_compiler.data)
+            open(header_path, "w").write(proxy_header_compiler.data)
 
         if compile_header:
             print("header compilation not implemented for now")

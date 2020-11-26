@@ -1,6 +1,6 @@
-from typing import Dict
+from typing import Dict, List
 from sidl.utils import IndentedWriter
-from sidl.ast import Visitor, Symbol, Method, Type, Interface, Namespace, VariableDeclaration, Struct
+from sidl.ast import Visitor, Symbol, Method, Type, Interface, Namespace, VariableDeclaration, Struct, AstNode
 
 
 class BaseCppCompiler(Visitor):
@@ -275,9 +275,23 @@ class ProxySourceCompiler(BaseCppCompiler):
         return self.writer.data()
 
 
+class PendingStruct:
+    namespace: List[str]
+    struct: Struct
+
+    def __init__(self, namespace: List[str], struct: Struct) -> None:
+        self.namespace = namespace
+        self.struct = struct
+
+
 class ProxyHeaderCompiler(BaseCppCompiler):
+    _structs: List[PendingStruct]
+    _namespace: List[str]
+
     def __init__(self, types: Dict[str, str], indent: int = 4) -> None:
         super().__init__(types, indent)
+        self._structs = []
+        self._namespace = []
 
     def visit_Method(self, node: Method) -> None:
         name = node.name.value
@@ -348,7 +362,7 @@ class ProxyHeaderCompiler(BaseCppCompiler):
         self._compile_proxy_interface(node)
         self._compile_receiver_interface(node)
 
-    def visit_Struct(self, node: Struct) -> None:
+    def _compile_struct_decl(self, node: Struct) -> None:
         struct_name = node.name.value
 
         self.writer.write_line(f"struct {struct_name}")
@@ -360,7 +374,115 @@ class ProxyHeaderCompiler(BaseCppCompiler):
             self.writer.write_line(";")
 
         self.writer.deindent()
+        self.writer.write_line("};")
+
+    def _compile_struct_serialize(self, p: PendingStruct) -> None:
+        struct_type = p.struct.name.value
+
+        if len(p.namespace) > 0:
+            struct_type = "::".join(p.namespace) + "::" + struct_type
+
+        self.writer.write_line("namespace rpc")
+        self.writer.write_line("{")
+        self.writer.indent()
+
+        self.writer.write_line(f"struct serializable_ex<{struct_type}>")
+        self.writer.write_line("{")
+        self.writer.indent()
+
+        self.writer.write_line(f"static void serialize({struct_type}& __sidl_obj, Serializer& __sidl_s)")
+        self.writer.write_line("{")
+        self.writer.indent()
+
+        for field in p.struct.fields:
+            ty_name = field.type.value
+            field_name = field.name.value
+
+            if ty_name == "handle":
+                self.writer.write_line(f"__sidl_s.add_handle(__sidl_obj.{field_name});")
+            else:
+                self.writer.write_line(f"__sidl_s.serialize(__sidl_obj.{field_name});")
+
+        self.writer.deindent()
         self.writer.write_line("}")
+
+        self.writer.deindent()
+        self.writer.write_line("}")
+
+        self.writer.deindent()
+        self.writer.write_line("}")
+
+    def _compile_struct_unserialize(self, p: PendingStruct) -> None:
+        struct_type = p.struct.name.value
+
+        if len(p.namespace) > 0:
+            struct_type = "::".join(p.namespace) + "::" + struct_type
+
+        self.writer.write_line("namespace rpc")
+        self.writer.write_line("{")
+        self.writer.indent()
+
+        self.writer.write_line(f"struct unserializable_ex<{struct_type}>")
+        self.writer.write_line("{")
+        self.writer.indent()
+
+        self.writer.write_line(f"static bool unserialize({struct_type}* __sidl_obj, Unserializer& __sidl_u)")
+        self.writer.write_line("{")
+        self.writer.indent()
+
+        for field in p.struct.fields:
+            ty_name = field.type.value
+            field_name = field.name.value
+
+            if ty_name == "handle":
+                self.writer.write_line(f"if (!__sidl_u.next_handle(&__sidl_obj.{field_name}))")
+            else:
+                self.writer.write_line(f"if (!__sidl_u.unserialize(&__sidl_obj.{field_name}))")
+
+            self.writer.indent()
+            self.writer.write_line("return false;")
+            self.writer.deindent()
+
+        self.writer.write_line("return true;")
+
+        self.writer.deindent()
+        self.writer.write_line("}")
+
+        self.writer.deindent()
+        self.writer.write_line("}")
+
+        self.writer.deindent()
+        self.writer.write_line("}")
+
+    def visit_Struct(self, node: Struct) -> None:
+        p = PendingStruct([s for s in self._namespace], node)
+        self._structs.append(p)
+        self._compile_struct_decl(node)
+
+    def visit_Namespace(self, node: Namespace) -> None:
+        name = node.name.value
+        self._namespace.append(name)
+
+        self.writer.write_line(f"namespace {name}")
+        self.writer.write_line("{")
+        self.writer.indent()
+
+        for elem in node.elements:
+            elem.accept(self)
+
+        self.writer.deindent()
+        self.writer.write_line("}")
+
+        self._namespace.pop()
+
+    def visit(self, root: AstNode) -> None:
+        # Generate code from namespace
+        root.accept(self)
+
+        # Generate out of namespace template specialization code
+        for p in self._structs:
+            self._compile_struct_unserialize(p)
+            self._compile_struct_serialize(p)
 
     @property
     def data(self) -> str:

@@ -1,0 +1,10 @@
+namespace math
+{
+    interface Calculator
+    {
+        add (i64 lhs, i64 rhs) -> (i64 result);
+        sub (i64 lhs, i64 rhs) -> (i64 result);
+        mul (i64 lhs, i64 rhs) -> (i64 result);
+        div (i64 lhs, i64 rhs) -> (i64 result);
+    }
+}

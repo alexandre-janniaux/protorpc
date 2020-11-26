@@ -140,7 +140,7 @@ class SourceCompiler(BaseCppCompiler):
                 else:
                     self.writer.write("if (!__sidl_u.unserialize(")
                     e.name.accept(self)
-                    self.writer.write_line(")")
+                    self.writer.write_line("))")
 
                     self.writer.indent()
                     self.writer.write_line("return false;")
@@ -324,7 +324,7 @@ class HeaderCompiler(BaseCppCompiler):
         # Constructor
         self.writer.write_line(f"{interface_name}Proxy(rpc::ExChannel* chan, std::uint64_t object_id, std::uint64_t remote_port, std::uint64_t remote_id)")
         self.writer.indent()
-        self.writer.write_line(f": {interface_name}Proxy(chan, object_id, remote_port, remote_id)")
+        self.writer.write_line(": rpc::ExRpcProxy(chan, object_id, remote_port, remote_id)")
         self.writer.deindent()
         self.writer.write_line("{}")
 
@@ -345,7 +345,7 @@ class HeaderCompiler(BaseCppCompiler):
         # Constructor
         self.writer.write_line(f"{interface_name}Receiver(rpc::ExChannel* chan, std::uint64_t object_id)")
         self.writer.indent()
-        self.writer.write_line(f": {interface_name}Receiver(chan, object_id)")
+        self.writer.write_line(f": rpc::ExRpcReceiver(chan, object_id)")
         self.writer.deindent()
         self.writer.write_line("{}")
 

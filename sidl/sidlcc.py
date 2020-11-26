@@ -35,8 +35,9 @@ def main():
     elif args.source_only:
         compile_header = False
 
-    impl_path = "./" + args.outdir + "/" + args.idl_file + ".cpp"
-    header_path = "./" + args.outdir + "/" + args.idl_file + ".hh"
+    idl_filename = os.path.basename(args.idl_file)
+    impl_path = "./" + args.outdir + "/" + idl_filename + ".cpp"
+    header_path = "./" + args.outdir + "/" + idl_filename + ".hh"
 
     data = open(args.idl_file, "r").read()
     lines = data.split("\n")
@@ -44,7 +45,6 @@ def main():
     p = Parser(lex)
 
     try:
-        idl_filename = os.path.basename(args.idl_file)
         root = p.parse()
 
         tr = TypeResolver()

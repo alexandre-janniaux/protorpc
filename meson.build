@@ -8,3 +8,8 @@ threads_dep = dependency('threads')
 
 subdir('libprotoipc')
 subdir('libprotorpc')
+subdir('sidl')
+
+if get_option('build_examples')
+  subdir('examples')
+endif

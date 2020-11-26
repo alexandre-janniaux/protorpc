@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import argparse
+import os
 from sidl.lexer import Lexer
 from sidl.parser import Parser
-from sidl.compiler import CppSourceCompiler, CppHeaderCompiler
 from sidl.utils import PrettyPrinter, SidlException
-from sidl.proxy_compiler import ProxySourceCompiler, ProxyHeaderCompiler
+from sidl.compiler import SourceCompiler, HeaderCompiler
 from sidl.type_resolver import TypeResolver
 
 
@@ -38,31 +38,29 @@ def main():
     impl_path = "./" + args.outdir + "/" + args.idl_file + ".cpp"
     header_path = "./" + args.outdir + "/" + args.idl_file + ".hh"
 
-    # XXX: Debug code
     data = open(args.idl_file, "r").read()
     lines = data.split("\n")
     lex = Lexer(data)
     p = Parser(lex)
 
     try:
+        idl_filename = os.path.basename(args.idl_file)
         root = p.parse()
 
         tr = TypeResolver()
         tr.visit(root)
 
         if compile_impl:
-            proxy_source_compiler = ProxySourceCompiler(tr.types)
-            proxy_source_compiler.visit(root)
+            source_compiler = SourceCompiler(idl_filename, tr.types)
+            source_compiler.visit(root)
 
-            proxy_header_compiler = ProxyHeaderCompiler(tr.types)
-            proxy_header_compiler.visit(root)
-
-            open(impl_path, "w").write(proxy_source_compiler.data)
-            open(header_path, "w").write(proxy_header_compiler.data)
+            open(impl_path, "w").write(source_compiler.data)
 
         if compile_header:
-            print("header compilation not implemented for now")
-            pass
+            header_compiler = HeaderCompiler(idl_filename, tr.types)
+            header_compiler.visit(root)
+
+            open(header_path, "w").write(header_compiler.data)
 
     except SidlException as err:
         start = max(err.line - 10, 0)

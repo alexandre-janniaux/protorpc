@@ -29,17 +29,37 @@ namespace rpc
     {
     public:
         Unserializer(std::vector<std::uint8_t>&& buffer)
-            : data_(std::move(buffer)), index_(0)
-        {};
+            : data_(std::move(buffer)), index_(0), handle_index_(0)
+        {}
+
+        Unserializer(std::vector<std::uint8_t>&& buffer, const std::vector<int>& handles)
+            : data_(std::move(buffer)), handles_(handles), index_(0), handle_index_(0)
+        {}
 
         Unserializer(const std::vector<std::uint8_t>& buffer)
-            : data_(buffer), index_(0)
-        {};
+            : data_(buffer), index_(0), handle_index_(0)
+        {}
+
+        Unserializer(const std::vector<std::uint8_t>& buffer, const std::vector<int>& handles)
+            : data_(buffer), handles_(handles), index_(0), handle_index_(0)
+        {}
 
         template <typename T>
         bool unserialize(T* output)
         {
             return unserialize_into(output);
+        }
+
+        /**
+         * Unserialize the next handle. Returns true on success.
+         */
+        bool next_handle(int* out)
+        {
+            if (handle_index_ >= handles_.size())
+                return false;
+
+            *out = handles_[handle_index_++];
+            return true;
         }
 
         std::vector<std::uint8_t> get_remaining()
@@ -145,7 +165,9 @@ namespace rpc
 
     private:
         std::vector<std::uint8_t> data_;
+        std::vector<int> handles_;
         std::size_t index_;
+        std::size_t handle_index_;
     };
 
 }

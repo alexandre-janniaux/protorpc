@@ -86,7 +86,7 @@ void Channel::bind_object(std::uint64_t object_id)
 
     Serializer s;
     s.serialize<std::uint64_t>(object_id);
-    msg.payload = s.get();
+    msg.payload = s.get_payload();
 
     send_message(msg);
 }

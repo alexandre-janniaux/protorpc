@@ -29,7 +29,7 @@ public:
         ipc::Message request;
         request.opcode = PING_COMMAND;
         request.destination = remote();
-        request.payload = s.get();
+        request.payload = s.get_payload();
 
         ipc::Message reply = send_request(request);
 
@@ -70,7 +70,7 @@ public:
             ipc::Message reply;
             reply.opcode = PING_COMMAND;
             reply.destination = remote();
-            reply.payload = s.get();
+            reply.payload = s.get_payload();
 
             send_message(reply);
         }
@@ -147,7 +147,7 @@ public:
         rpc::Serializer s;
         s.serialize(ping_str);
 
-        message.payload = s.get();
+        message.payload = s.get_payload();
 
         rpc::Message result;
 
@@ -188,7 +188,7 @@ public:
             rpc::Serializer s;
             s.serialize(ping_str);
 
-            message.payload = s.get();
+            message.payload = s.get_payload();
             channel_->send_message(source_port, message);
         }
     }

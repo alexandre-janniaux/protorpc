@@ -88,7 +88,7 @@ bool ExChannel::send_message(std::uint64_t remote_port, rpc::Message& msg)
     // payload_size is encoded as part of the vector
     s.serialize(msg.payload);
 
-    ipc_msg.payload = s.get();
+    ipc_msg.payload = s.get_payload();
 
     ipc::PortError error = port_.send(ipc_msg);
 

@@ -22,9 +22,6 @@ namespace rpc
      * struct serializable<Object> {
      *     // Serialize fields to bytes
      *     static void serialize(Object& obj, Serializer& s) { ... };
-     *
-     *     // Serialize the native handles
-     *     static void serialize(Object& obj, std::vector<int>& handles) { ... };
      * };
      */
 
@@ -46,11 +43,23 @@ namespace rpc
             data_.insert(data_.end(), data_ptr, data_ptr + size);
         }
 
-        /// Returns the inner vector by moving it and empty the serializer
-        std::vector<std::uint8_t> get()
+        void add_handle(int handle)
+        {
+            handles_.push_back(handle);
+        }
+
+        std::vector<std::uint8_t> get_payload()
         {
             auto ret = std::move(data_);
             data_.clear();
+
+            return ret;
+        }
+
+        std::vector<int> get_handles()
+        {
+            auto ret = std::move(handles_);
+            handles_.clear();
 
             return ret;
         }
@@ -103,6 +112,7 @@ namespace rpc
 
 
         std::vector<uint8_t> data_;
+        std::vector<int> handles_;
     };
 
 }

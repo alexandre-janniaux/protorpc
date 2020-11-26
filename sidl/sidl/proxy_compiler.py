@@ -101,7 +101,6 @@ class ProxySourceCompiler(BaseCppCompiler):
 
         # Code generation for sending
         self.writer.write_line(f"// Opcode '{node.name.value}' = {self._current_opcode};")
-        self.writer.write_line("std::size_t __sidl_handle_idx = 0;")
         self.writer.write_line("rpc::Message __sidl_message;")
         self.writer.write_line("__sidl_message.source = id();")
         self.writer.write_line("__sidl_message.destination = remote_id();")
@@ -111,7 +110,7 @@ class ProxySourceCompiler(BaseCppCompiler):
         # Serializing the arguments
         for e in node.arguments:
             if e.type.value == "handle":
-                self.writer.write("__sidl_message.handles.push_back(")
+                self.writer.write("__sidl_s.add_handle(")
                 e.name.accept(self)
                 self.writer.write_line(");")
             else:
@@ -119,7 +118,8 @@ class ProxySourceCompiler(BaseCppCompiler):
                 e.name.accept(self)
                 self.writer.write_line(");")
 
-        self.writer.write_line("__sidl_message.payload = s.get();")
+        self.writer.write_line("__sidl_message.payload = __sidl_s.get_payload();")
+        self.writer.write_line("__sidl_message.handles = __sidl_s.get_handles();")
 
         if node.return_values is None:
             self.writer.write_line("return channel_->send_message(remote_port(), __sidl_message);")
@@ -131,23 +131,17 @@ class ProxySourceCompiler(BaseCppCompiler):
             self.writer.write_line("return false;")
             self.writer.deindent()
 
-            self.writer.write_line("rpc::Unserializer __sidl_u(std::move(__sidl_result.payload));")
-
-            # Index inside the received handles vector
-            handle_index = 0
+            self.writer.write_line("rpc::Unserializer __sidl_u(std::move(__sidl_result.payload), __sidl_result.handles);")
 
             for e in node.return_values:
                 if e.type.value == "handle":
-                    self.writer.write_line("if (__sidl_handle_idx >= __sidl_result.handles.size())")
+                    self.writer.write("if (!__sidl_u.next_handle(")
+                    e.name.accept(self)
+                    self.writer.write_line(")")
+
                     self.writer.indent()
                     self.writer.write_line("return false;")
                     self.writer.deindent()
-
-                    self.writer.write("*")
-                    e.name.accept(self)
-                    self.writer.write_line(" = __sidl_result.handles[__sidl_handle_idx++];")
-
-                    handle_index += 1
                 else:
                     self.writer.write("if (!__sidl_u.unserialize(")
                     e.name.accept(self)
@@ -164,7 +158,7 @@ class ProxySourceCompiler(BaseCppCompiler):
 
     def _compile_receiver_method(self, node: Method) -> None:
         # Step 1: Deserialize arguments
-        self.writer.write_line("rpc::Unserializer __sidl_u(std::move(__sidl_message.payload));")
+        self.writer.write_line("rpc::Unserializer __sidl_u(std::move(__sidl_message.payload), __sidl_message.handles);")
         call_stmt = f"{node.name.value}("
 
         for i, e in enumerate(node.arguments):
@@ -180,11 +174,15 @@ class ProxySourceCompiler(BaseCppCompiler):
             call_stmt += arg_name
 
             if arg_type == "handle":
-                self.writer.write_line("if (__sidl_handle_idx >= __sidl_message.handles.size())")
+                self.writer.write_line(f"if (!__sidl_u.next_handle(&{arg_name}))")
                 self.writer.indent()
                 self.writer.write_line("return; // TODO: Maybe return an error code ?")
                 self.writer.deindent()
-                self.writer.write_line(f"{arg_name} = __sidl_message.handles[__sidl_handle_idx++];")
+                # self.writer.write_line("if (__sidl_handle_idx >= __sidl_message.handles.size())")
+                # self.writer.indent()
+                # self.writer.write_line("return; // TODO: Maybe return an error code ?")
+                # self.writer.deindent()
+                # self.writer.write_line(f"{arg_name} = __sidl_message.handles[__sidl_handle_idx++];")
             else:
                 self.writer.write_line(f"if (!__sidl_u.unserialize(&{arg_name}))")
                 self.writer.indent()
@@ -221,11 +219,12 @@ class ProxySourceCompiler(BaseCppCompiler):
             ret_name = e.name.value
 
             if ret_type == "handle":
-                self.writer.write_line(f"__sidl_reply.handles.push_back({ret_name});")
+                self.writer.write_line(f"__sidl_s.add_handle({ret_name});")
             else:
                 self.writer.write_line(f"__sidl_s.serialize({ret_name});")
 
-        self.writer.write_line("__sidl_reply.payload = __sidl_s.get();")
+        self.writer.write_line("__sidl_reply.payload = __sidl_s.get_payload();")
+        self.writer.write_line("__sidl_reply.handles = __sidl_s.get_handles();")
         self.writer.write_line("channel_->send_message(__sidl_source_port, __sidl_reply);")
 
     def _compile_proxy_interface(self, node: Interface) -> None:
@@ -240,10 +239,9 @@ class ProxySourceCompiler(BaseCppCompiler):
         self._current_interface = node.name.value
         self._current_opcode = 0
 
-        self.writer.write_line(f"{node.name.value}Receiver::on_message(std::uint64_t __sidl_source_port, rpc::Message& __sidl_message)")
+        self.writer.write_line(f"void {node.name.value}Receiver::on_message(std::uint64_t __sidl_source_port, rpc::Message& __sidl_message)")
         self.writer.write_line("{")
         self.writer.indent()
-        self.writer.write_line("std::size_t __sidl_handle_idx = 0;")
         self.writer.write_line("switch (__sidl_message.opcode)")
         self.writer.write_line("{")
 

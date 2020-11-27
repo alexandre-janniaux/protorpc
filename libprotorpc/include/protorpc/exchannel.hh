@@ -26,10 +26,10 @@ namespace rpc
         /**
          * Binds a receiver to the current channel.
          */
-        template <typename T>
-        ExReceiver<T> bind()
+        template <typename T, typename... Ts>
+        ExReceiver<T> bind(Ts&&... args)
         {
-            ExReceiver<T> object = std::make_shared<T>(this, current_id_++);
+            ExReceiver<T> object = std::make_shared<T>(this, current_id_++, std::forward<Ts>(args)...);
             receivers_[object->id()] = object;
 
             return object;

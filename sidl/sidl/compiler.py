@@ -296,7 +296,7 @@ class HeaderCompiler(BaseCppCompiler):
     def visit_Method(self, node: Method) -> None:
         name = node.name.value
 
-        self.writer.write(f"bool {name}(")
+        self.writer.write(f"virtual bool {name}(")
 
         for i, e in enumerate(node.arguments):
             if i > 0:
@@ -328,6 +328,9 @@ class HeaderCompiler(BaseCppCompiler):
         self.writer.deindent()
         self.writer.write_line("{}")
 
+        # Destructor
+        self.writer.write_line(f"virtual ~{interface_name}Proxy() {{}}")
+
         # Method declaration
         for method in node.methods:
             method.accept(self)
@@ -348,6 +351,9 @@ class HeaderCompiler(BaseCppCompiler):
         self.writer.write_line(f": rpc::ExRpcReceiver(chan, object_id)")
         self.writer.deindent()
         self.writer.write_line("{}")
+
+        # Destructor
+        self.writer.write_line(f"virtual ~{interface_name}Receiver() {{}}")
 
         # on_message overload
         self.writer.write_line("void on_message(std::uint64_t source_port, rpc::Message& message) override;")

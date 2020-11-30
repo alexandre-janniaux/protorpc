@@ -17,6 +17,19 @@ protorpc_dep = declare_dependency(link_with: protorpc_library,
   dependencies: [protoipc_dep]
 )
 
+protorpc_install_headers = [
+  'include/protorpc/channel.hh',
+  'include/protorpc/message.hh',
+  'include/protorpc/rpcobject.hh',
+  'include/protorpc/serializer.hh',
+  'include/protorpc/unserializer.hh'
+]
+
+pkg = import('pkgconfig')
+pkg.generate(protorpc_library)
+
+install_headers(protorpc_install_headers, subdir: 'protorpc')
+
 if get_option('protorpc_tests')
   gtest = subproject('gtest')
   gtest_dep = gtest.get_variable('gtest_dep')

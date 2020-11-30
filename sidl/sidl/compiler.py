@@ -76,7 +76,10 @@ class SourceCompiler(BaseCppCompiler):
         self.writer.write(f"bool {self._current_interface}Proxy::{node.name.value}(")
 
         for i, e in enumerate(node.arguments):
-            e.accept(self)
+            e.type.accept(self)
+            self.writer.write(" ")
+            self.writer.write("__sidl_argument_")
+            e.name.accept(self)
 
             if i != len(node.arguments) - 1:
                 self.writer.write(", ")
@@ -88,6 +91,7 @@ class SourceCompiler(BaseCppCompiler):
 
                 e.type.accept(self)
                 self.writer.write("* ")
+                self.writer.write("__sidl_retval_")
                 e.name.accept(self)
 
         self.writer.write_line(")")
@@ -105,11 +109,11 @@ class SourceCompiler(BaseCppCompiler):
         # Serializing the arguments
         for e in node.arguments:
             if e.type.value == "handle":
-                self.writer.write("__sidl_s.add_handle(")
+                self.writer.write("__sidl_s.add_handle(__sidl_argument_")
                 e.name.accept(self)
                 self.writer.write_line(");")
             else:
-                self.writer.write("__sidl_s.serialize(")
+                self.writer.write("__sidl_s.serialize(__sidl_argument_")
                 e.name.accept(self)
                 self.writer.write_line(");")
 
@@ -130,7 +134,7 @@ class SourceCompiler(BaseCppCompiler):
 
             for e in node.return_values:
                 if e.type.value == "handle":
-                    self.writer.write("if (!__sidl_u.next_handle(")
+                    self.writer.write("if (!__sidl_u.next_handle(__sidl_retval_")
                     e.name.accept(self)
                     self.writer.write_line(")")
 
@@ -138,7 +142,7 @@ class SourceCompiler(BaseCppCompiler):
                     self.writer.write_line("return false;")
                     self.writer.deindent()
                 else:
-                    self.writer.write("if (!__sidl_u.unserialize(")
+                    self.writer.write("if (!__sidl_u.unserialize(__sidl_retval_")
                     e.name.accept(self)
                     self.writer.write_line("))")
 
@@ -157,7 +161,9 @@ class SourceCompiler(BaseCppCompiler):
         call_stmt = f"{node.name.value}("
 
         for i, e in enumerate(node.arguments):
-            e.accept(self)
+            e.type.accept(self)
+            self.writer.write(" __sidl_argument_")
+            e.name.accept(self)
             self.writer.write_line(";")
 
             arg_type = e.type.value
@@ -166,28 +172,30 @@ class SourceCompiler(BaseCppCompiler):
             if i > 0:
                 call_stmt += ", "
 
-            call_stmt += arg_name
+            call_stmt += f"__sidl_argument_{arg_name}"
 
             if arg_type == "handle":
-                self.writer.write_line(f"if (!__sidl_u.next_handle(&{arg_name}))")
+                self.writer.write_line(f"if (!__sidl_u.next_handle(&__sidl_argument_{arg_name}))")
                 self.writer.indent()
                 self.writer.write_line("return; // TODO: Maybe return an error code ?")
                 self.writer.deindent()
             else:
-                self.writer.write_line(f"if (!__sidl_u.unserialize(&{arg_name}))")
+                self.writer.write_line(f"if (!__sidl_u.unserialize(&__sidl_argument_{arg_name}))")
                 self.writer.indent()
                 self.writer.write_line("return; // TODO: Maybe return an error code ?")
                 self.writer.deindent()
 
         if node.return_values:
             for i, e in enumerate(node.return_values):
-                e.accept(self)
+                e.type.accept(self)
+                self.writer.write(" __sidl_retval_")
+                e.name.accept(self)
                 self.writer.write_line(";")
 
                 if len(node.arguments) > 0 or i > 0:
                     call_stmt += ", "
 
-                call_stmt += f"&{e.name.value}"
+                call_stmt += f"&__sidl_retval_{e.name.value}"
 
         call_stmt += ");"
 
@@ -209,9 +217,9 @@ class SourceCompiler(BaseCppCompiler):
             ret_name = e.name.value
 
             if ret_type == "handle":
-                self.writer.write_line(f"__sidl_s.add_handle({ret_name});")
+                self.writer.write_line(f"__sidl_s.add_handle(__sidl_retval_{ret_name});")
             else:
-                self.writer.write_line(f"__sidl_s.serialize({ret_name});")
+                self.writer.write_line(f"__sidl_s.serialize(__sidl_retval_{ret_name});")
 
         self.writer.write_line("__sidl_reply.payload = __sidl_s.get_payload();")
         self.writer.write_line("__sidl_reply.handles = __sidl_s.get_handles();")

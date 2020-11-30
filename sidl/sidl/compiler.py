@@ -316,15 +316,15 @@ class HeaderCompiler(BaseCppCompiler):
 
     def _compile_proxy_interface(self, node: Interface) -> None:
         interface_name = node.name.value
-        self.writer.write_line(f"class {interface_name}Proxy: public rpc::ExRpcProxy")
+        self.writer.write_line(f"class {interface_name}Proxy: public rpc::RpcProxy")
         self.writer.write_line("{")
         self.writer.write_line("public:")
         self.writer.indent()
 
         # Constructor
-        self.writer.write_line(f"{interface_name}Proxy(rpc::ExChannel* chan, std::uint64_t object_id, std::uint64_t remote_port, std::uint64_t remote_id)")
+        self.writer.write_line(f"{interface_name}Proxy(rpc::Channel* chan, std::uint64_t object_id, std::uint64_t remote_port, std::uint64_t remote_id)")
         self.writer.indent()
-        self.writer.write_line(": rpc::ExRpcProxy(chan, object_id, remote_port, remote_id)")
+        self.writer.write_line(": rpc::RpcProxy(chan, object_id, remote_port, remote_id)")
         self.writer.deindent()
         self.writer.write_line("{}")
 
@@ -340,15 +340,15 @@ class HeaderCompiler(BaseCppCompiler):
 
     def _compile_receiver_interface(self, node: Interface) -> None:
         interface_name = node.name.value
-        self.writer.write_line(f"class {interface_name}Receiver: public rpc::ExRpcReceiver")
+        self.writer.write_line(f"class {interface_name}Receiver: public rpc::RpcReceiver")
         self.writer.write_line("{")
         self.writer.write_line("public:")
         self.writer.indent()
 
         # Constructor
-        self.writer.write_line(f"{interface_name}Receiver(rpc::ExChannel* chan, std::uint64_t object_id)")
+        self.writer.write_line(f"{interface_name}Receiver(rpc::Channel* chan, std::uint64_t object_id)")
         self.writer.indent()
-        self.writer.write_line(f": rpc::ExRpcReceiver(chan, object_id)")
+        self.writer.write_line(f": rpc::RpcReceiver(chan, object_id)")
         self.writer.deindent()
         self.writer.write_line("{}")
 
@@ -392,7 +392,7 @@ class HeaderCompiler(BaseCppCompiler):
         self.writer.write_line("{")
         self.writer.indent()
 
-        self.writer.write_line(f"struct serializable_ex<{struct_type}>")
+        self.writer.write_line(f"struct serializable<{struct_type}>")
         self.writer.write_line("{")
         self.writer.indent()
 
@@ -428,7 +428,7 @@ class HeaderCompiler(BaseCppCompiler):
         self.writer.write_line("{")
         self.writer.indent()
 
-        self.writer.write_line(f"struct unserializable_ex<{struct_type}>")
+        self.writer.write_line(f"struct unserializable<{struct_type}>")
         self.writer.write_line("{")
         self.writer.indent()
 
@@ -488,9 +488,9 @@ class HeaderCompiler(BaseCppCompiler):
         self.writer.write_line(f"#define {header_name}")
         self.writer.write_line("#include \"protorpc/serializer.hh\"")
         self.writer.write_line("#include \"protorpc/unserializer.hh\"")
-        self.writer.write_line("#include \"protorpc/exrpcobject.hh\"")
+        self.writer.write_line("#include \"protorpc/rpcobject.hh\"")
         self.writer.write_line("#include \"protorpc/message.hh\"")
-        self.writer.write_line("#include \"protorpc/exchannel.hh\"")
+        self.writer.write_line("#include \"protorpc/channel.hh\"")
         self.writer.write_line("")
 
         # Generate code from namespace

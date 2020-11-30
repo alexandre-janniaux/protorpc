@@ -48,8 +48,8 @@ int main(int argc, char** argv)
     std::uint64_t receiver_chan_id = router.add_port(ipc::Port(receiver_socks[0]));
 
     // Setting up channels
-    rpc::ExChannel client_chan(client_chan_id, ipc::Port(client_socks[1]));
-    rpc::ExChannel receiver_chan(receiver_chan_id, ipc::Port(receiver_socks[1]));
+    rpc::Channel client_chan(client_chan_id, ipc::Port(client_socks[1]));
+    rpc::Channel receiver_chan(receiver_chan_id, ipc::Port(receiver_socks[1]));
 
     auto receiver = receiver_chan.bind<math::CalculatorReceiver>();
     auto proxy = client_chan.bind<math::CalculatorProxy>(receiver_chan_id, receiver->id());

@@ -40,21 +40,6 @@ namespace db
     };
 }
 
-namespace db
-{
-
-bool DatabaseReceiver::add(std::string, std::string)
-{
-    return true;
-}
-
-bool DatabaseReceiver::get(std::string, std::optional<std::string>*)
-{
-    return true;
-}
-
-}
-
 int main(int argc, char** argv)
 {
     // Creating the sockets between elements

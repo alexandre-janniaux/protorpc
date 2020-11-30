@@ -301,7 +301,28 @@ class HeaderCompiler(BaseCppCompiler):
         self._namespace = []
         self._filename = filename
 
-    def visit_Method(self, node: Method) -> None:
+    def _compile_proxy_method(self, node: Method) -> None:
+        name = node.name.value
+
+        self.writer.write(f"bool {name}(")
+
+        for i, e in enumerate(node.arguments):
+            e.accept(self)
+
+            if i != len(node.arguments) - 1:
+                self.writer.write(", ")
+
+        if node.return_values:
+            for i, e in enumerate(node.return_values):
+                if len(node.arguments) > 0 or i > 0:
+                    self.writer.write(", ")
+
+                e.type.accept(self)
+                self.writer.write(f"* {e.name.value}")
+
+        self.writer.write_line(");")
+
+    def _compile_receiver_method(self, node: Method) -> None:
         name = node.name.value
 
         self.writer.write(f"virtual bool {name}(")
@@ -320,7 +341,8 @@ class HeaderCompiler(BaseCppCompiler):
                 e.type.accept(self)
                 self.writer.write(f"* {e.name.value}")
 
-        self.writer.write_line(");")
+        # XXX: Hack
+        self.writer.write_line(") { return false; };")
 
     def _compile_proxy_interface(self, node: Interface) -> None:
         interface_name = node.name.value
@@ -341,7 +363,7 @@ class HeaderCompiler(BaseCppCompiler):
 
         # Method declaration
         for method in node.methods:
-            method.accept(self)
+            self._compile_proxy_method(method)
 
         self.writer.deindent()
         self.writer.write_line("};")
@@ -367,7 +389,7 @@ class HeaderCompiler(BaseCppCompiler):
         self.writer.write_line("void on_message(std::uint64_t source_port, rpc::Message& message) override;")
 
         for method in node.methods:
-            method.accept(self)
+            self._compile_receiver_method(method)
 
         self.writer.deindent()
         self.writer.write_line("};")

@@ -7,31 +7,37 @@
 // Implementing the receiver methods
 namespace math
 {
+    class CalculatorImpl: public CalculatorReceiver
+    {
+    public:
+        CalculatorImpl(rpc::Channel* chan, std::uint64_t object_id)
+            : CalculatorReceiver(chan, object_id)
+        {}
 
-bool CalculatorReceiver::add(std::int64_t lhs, std::int64_t rhs, std::int64_t* result)
-{
-    *result = lhs + rhs;
-    return true;
-}
+        bool add(std::int64_t lhs, std::int64_t rhs, std::int64_t* result) override
+        {
+            *result = lhs + rhs;
+            return true;
+        }
 
-bool CalculatorReceiver::sub(std::int64_t lhs, std::int64_t rhs, std::int64_t* result)
-{
-    *result = lhs - rhs;
-    return true;
-}
+        bool sub(std::int64_t lhs, std::int64_t rhs, std::int64_t* result) override
+        {
+            *result = lhs - rhs;
+            return true;
+        }
 
-bool CalculatorReceiver::mul(std::int64_t lhs, std::int64_t rhs, std::int64_t* result)
-{
-    *result = lhs * rhs;
-    return true;
-}
+        bool mul(std::int64_t lhs, std::int64_t rhs, std::int64_t* result) override
+        {
+            *result = lhs * rhs;
+            return true;
+        }
 
-bool CalculatorReceiver::div(std::int64_t lhs, std::int64_t rhs, std::int64_t* result)
-{
-    *result = lhs / rhs;
-    return true;
-}
-
+        bool div(std::int64_t lhs, std::int64_t rhs, std::int64_t* result) override
+        {
+            *result = lhs / rhs;
+            return true;
+        }
+    };
 }
 
 int main(int argc, char** argv)
@@ -51,7 +57,7 @@ int main(int argc, char** argv)
     rpc::Channel client_chan(client_chan_id, ipc::Port(client_socks[1]));
     rpc::Channel receiver_chan(receiver_chan_id, ipc::Port(receiver_socks[1]));
 
-    auto receiver = receiver_chan.bind<math::CalculatorReceiver>();
+    auto receiver = receiver_chan.bind<math::CalculatorImpl>();
     auto proxy = client_chan.bind<math::CalculatorProxy>(receiver_chan_id, receiver->id());
 
     std::thread router_thread([&]() {

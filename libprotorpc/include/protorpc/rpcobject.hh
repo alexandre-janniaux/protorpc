@@ -14,7 +14,7 @@ namespace rpc
     public:
         RpcObject(Channel* chan, std::uint64_t id);
 
-        const std::uint64_t id()
+        std::uint64_t id() const
         {
             return object_id_;
         }

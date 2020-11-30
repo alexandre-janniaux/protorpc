@@ -299,14 +299,14 @@ class HeaderCompiler(BaseCppCompiler):
         self.writer.write(f"virtual bool {name}(")
 
         for i, e in enumerate(node.arguments):
-            if i > 0:
-                self.writer.write(", ")
-
             e.accept(self)
 
+            if i != len(node.arguments) - 1:
+                self.writer.write(", ")
+
         if node.return_values:
-            for e in node.return_values:
-                if len(node.arguments) > 0:
+            for i, e in enumerate(node.return_values):
+                if len(node.arguments) > 0 or i > 0:
                     self.writer.write(", ")
 
                 e.type.accept(self)
@@ -392,6 +392,7 @@ class HeaderCompiler(BaseCppCompiler):
         self.writer.write_line("{")
         self.writer.indent()
 
+        self.writer.write_line("template <>")
         self.writer.write_line(f"struct serializable<{struct_type}>")
         self.writer.write_line("{")
         self.writer.indent()
@@ -413,7 +414,7 @@ class HeaderCompiler(BaseCppCompiler):
         self.writer.write_line("}")
 
         self.writer.deindent()
-        self.writer.write_line("}")
+        self.writer.write_line("};")
 
         self.writer.deindent()
         self.writer.write_line("}")
@@ -428,6 +429,7 @@ class HeaderCompiler(BaseCppCompiler):
         self.writer.write_line("{")
         self.writer.indent()
 
+        self.writer.write_line("template <>")
         self.writer.write_line(f"struct unserializable<{struct_type}>")
         self.writer.write_line("{")
         self.writer.indent()
@@ -441,9 +443,9 @@ class HeaderCompiler(BaseCppCompiler):
             field_name = field.name.value
 
             if ty_name == "handle":
-                self.writer.write_line(f"if (!__sidl_u.next_handle(&__sidl_obj.{field_name}))")
+                self.writer.write_line(f"if (!__sidl_u.next_handle(&__sidl_obj->{field_name}))")
             else:
-                self.writer.write_line(f"if (!__sidl_u.unserialize(&__sidl_obj.{field_name}))")
+                self.writer.write_line(f"if (!__sidl_u.unserialize(&__sidl_obj->{field_name}))")
 
             self.writer.indent()
             self.writer.write_line("return false;")
@@ -455,7 +457,7 @@ class HeaderCompiler(BaseCppCompiler):
         self.writer.write_line("}")
 
         self.writer.deindent()
-        self.writer.write_line("}")
+        self.writer.write_line("};")
 
         self.writer.deindent()
         self.writer.write_line("}")

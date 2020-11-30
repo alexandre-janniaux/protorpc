@@ -3,76 +3,60 @@
 
 #include <cstdint>
 #include <memory>
-#include <type_traits>
-#include "protoipc/message.hh"
 
 namespace rpc
 {
     class Channel;
-
-    // TODO: Add specific error types
-    enum class RpcError
-    {
-        Ok = 0,
-        Error
-    };
+    class Message;
 
     class RpcObject
     {
     public:
-        RpcObject(Channel* chan, std::uint64_t id, std::uint64_t remote);
+        RpcObject(Channel* chan, std::uint64_t id);
 
-        const std::uint64_t id() const
+        const std::uint64_t id()
         {
             return object_id_;
         }
-
-        const std::uint64_t remote() const
-        {
-            return remote_id_;
-        }
-
-        /**
-         * Send a message through the bound channel.
-         */
-        void send_message(ipc::Message& message) const;
 
     protected:
         Channel* channel_;
 
     private:
         std::uint64_t object_id_;
-        std::uint64_t remote_id_;
     };
 
-    /**
-     * Rpc object used to make request and possible receive answers.
-     */
     class RpcProxy : public RpcObject
     {
     public:
-        RpcProxy(Channel* chan, std::uint64_t id, std::uint64_t remote);
+        RpcProxy(Channel* chan, std::uint64_t id, std::uint64_t remote_port, std::uint64_t remote_id);
 
-        /**
-         * Send a request through the bound channel.
-         */
-        ipc::Message send_request(ipc::Message& message) const;
+        std::uint64_t remote_port() const
+        {
+            return remote_port_;
+        }
+
+        std::uint64_t remote_id() const
+        {
+            return remote_id_;
+        }
+
+    private:
+        std::uint64_t remote_port_;
+        std::uint64_t remote_id_;
     };
 
-    /**
-     * Rpc object receiving events.
-     */
     class RpcReceiver : public RpcObject
     {
     public:
-        RpcReceiver(Channel* chan, std::uint64_t id, std::uint64_t remote);
+        RpcReceiver(Channel* chan, std::uint64_t id);
         virtual ~RpcReceiver() {};
 
         /**
-         * Handler called by the channel when a message is received for the given
+         * Handler called by the channel when a message received for the given
          * receiver.
          */
-        virtual void on_message(ipc::Message& message) = 0;
+        virtual void on_message(std::uint64_t source_port, rpc::Message& message) = 0;
     };
 
     template <typename T>

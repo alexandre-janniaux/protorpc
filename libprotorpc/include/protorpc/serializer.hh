@@ -13,9 +13,9 @@ namespace rpc
 {
 
     template <typename T>
-    struct serializable_ex
+    struct serializable
     {
-        serializable_ex() = delete;
+        serializable() = delete;
     };
 
     /*
@@ -26,7 +26,7 @@ namespace rpc
      */
 
     template <typename T>
-    constexpr bool is_serializable_ex_v = std::is_constructible_v<serializable_ex<T>>;
+    constexpr bool is_serializable_v = std::is_constructible_v<serializable<T>>;
 
     class Serializer
     {
@@ -90,10 +90,10 @@ namespace rpc
         }
 
         template <typename T>
-        std::enable_if_t<is_serializable_ex_v<T>>
+        std::enable_if_t<is_serializable_v<T>>
         serialize_into(T obj)
         {
-            serializable_ex<T>::serialize(obj, *this);
+            serializable<T>::serialize(obj, *this);
         }
 
         template <typename T>

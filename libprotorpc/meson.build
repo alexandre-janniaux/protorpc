@@ -4,15 +4,7 @@ protorpc_headers = include_directories('include')
 protorpc_sources += [
   'src/channel.cpp',
   'src/rpcobject.cpp',
-  'src/exrpcobject.cpp',
-  'src/exchannel.cpp'
 ]
-
-if build_machine.system() == 'linux'
-  protorpc_sources += [ 'src/broker.cpp' ]
-else
-  error('Unsupported os: @0@'.format(build_machine.system()))
-endif
 
 protorpc_library = library('protorpc', protorpc_sources,
   include_directories: protorpc_headers,

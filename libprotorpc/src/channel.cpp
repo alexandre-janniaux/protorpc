@@ -1,94 +1,123 @@
 #include <stdexcept>
-#include "fmt/core.h"
-#include "protorpc/channel.hh"
-#include "protorpc/broker.hh"
 #include "protorpc/serializer.hh"
+#include "protorpc/unserializer.hh"
+#include "protorpc/channel.hh"
 
 namespace rpc
 {
 
-Channel::Channel(ipc::Port port)
-    : port_(port)
+using PendingRpcMessage = Channel::PendingRpcMessage;
+
+Channel::Channel(std::uint64_t port_id, ipc::Port port)
+    : port_id_(port_id), port_(port)
 {}
 
-void Channel::send_message(ipc::Message& message)
+PendingRpcMessage Channel::next_message_()
 {
-    port_.send(message);
-}
-
-ipc::Message Channel::send_request(ipc::Message& message, std::uint64_t sender)
-{
-    send_message(message);
-
-    // Now we wait synchronously for an answer, if the message is not for us
-    // we add it to the message queue.
-    for (;;)
-    {
-        ipc::Message cur_msg;
-        ipc::PortError err = port_.receive(cur_msg);
-
-        // TODO: Find correct way of handling errors.
-        if (err != ipc::PortError::Ok)
-            throw std::runtime_error("Error while reading from port");
-
-        if (cur_msg.destination == sender)
-        {
-            if (cur_msg.opcode != message.opcode)
-                throw std::runtime_error("Reply opcode doesn't match");
-
-            return cur_msg;
-        }
-
-        message_queue_.push_back(std::move(cur_msg));
-    }
-}
-
-void Channel::loop()
-{
-    for (;;)
-    {
-        fmt::print("[CHANNEL] Waiting for messages on port {}\n", port_.handle());
         ipc::Message msg;
         ipc::PortError err = port_.receive(msg);
 
         if (err != ipc::PortError::Ok)
             throw std::runtime_error("Error while reading from port");
 
-        // XXX: Handle transmission errors
+        struct PendingRpcMessage pending;
+        pending.source_port = msg.destination;
+
+        // Extract the rpc payload from the message
+        rpc::Message result;
+        result.handles = std::move(msg.handles);
+
+        Unserializer u(std::move(msg.payload));
+
+        bool status = true;
+        std::vector<std::uint8_t> payload;
+
+        status &= u.unserialize(&result.source);
+        status &= u.unserialize(&result.destination);
+        status &= u.unserialize(&result.opcode);
+        status &= u.unserialize(&result.payload);
+
+        if (!status)
+            throw std::runtime_error("Could not decode rpc message header");
+
+        // We patch the rpc::Message to indicate the source object.
+        pending.destination_object = result.destination;
+        result.destination = result.source;
+        result.source = pending.destination_object;
+
+        pending.message = std::move(result);
+
+        return pending;
+}
+
+void Channel::loop()
+{
+    for (;;)
+    {
+        PendingRpcMessage msg = next_message_();
         message_queue_.push_back(std::move(msg));
 
         while (!message_queue_.empty())
         {
-            ipc::Message cur_msg = std::move(message_queue_.front());
-            message_queue_.pop_front();
-
-            fmt::print("[CHANNEL] Received message to {} with opcode {}\n",
-                    cur_msg.destination, cur_msg.opcode);
-
-            auto handler = receivers_.find(cur_msg.destination);
+            PendingRpcMessage& pending_msg = message_queue_.front();
+            auto handler = receivers_.find(pending_msg.destination_object);
 
             if (handler == receivers_.end())
-                throw std::runtime_error("Not object bound for requested id");
+                throw std::runtime_error("Destination object not found");
 
-            auto& [id, object] = *handler;
-            object->on_message(cur_msg);
+            handler->second->on_message(pending_msg.source_port, pending_msg.message);
+            message_queue_.pop_front();
         }
     }
 }
 
-void Channel::bind_object(std::uint64_t object_id)
+bool Channel::send_message(std::uint64_t remote_port, rpc::Message& msg)
 {
-    ipc::Message msg;
+    ipc::Message ipc_msg;
 
-    // TODO: Add these constants somewhere
-    msg.destination = 0; // Broker is always id 0
-    msg.opcode = 0; // BIND_OBJECT opcode
+    // This is the ipc layer, destination is remote process id
+    ipc_msg.destination = remote_port;
+    ipc_msg.handles = std::move(msg.handles);
 
-    Serializer s;
-    s.serialize<std::uint64_t>(object_id);
-    msg.payload = s.get_payload();
+    // Encoding the rpc::Message data
+    rpc::Serializer s;
+    s.serialize(msg.source);
+    s.serialize(msg.destination);
+    s.serialize(msg.opcode);
 
-    send_message(msg);
+    // payload_size is encoded as part of the vector
+    s.serialize(msg.payload);
+
+    ipc_msg.payload = s.get_payload();
+
+    ipc::PortError error = port_.send(ipc_msg);
+
+    // TODO: Return a more explicit error than just "failed"
+    return error == ipc::PortError::Ok;
+}
+
+bool Channel::send_request(std::uint64_t remote_port, rpc::Message& msg, rpc::Message& result)
+{
+    if (!send_message(remote_port, msg))
+        return false;
+
+    for (;;)
+    {
+        PendingRpcMessage pending = next_message_();
+
+        // We have to check the destination because next_message_ swaps source and destination ids
+        // on message arrival.
+        if (pending.message.destination == msg.destination && pending.message.opcode == msg.opcode &&
+                remote_port == pending.source_port)
+        {
+            result = std::move(pending.message);
+            break;
+        }
+
+        message_queue_.push_back(std::move(pending));
+    }
+
+    return true;
 }
 
 }

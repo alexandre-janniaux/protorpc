@@ -1,30 +1,20 @@
 #include "protorpc/rpcobject.hh"
-#include "protorpc/channel.hh"
 
 namespace rpc
 {
 
-RpcObject::RpcObject(Channel* chan, std::uint64_t id, std::uint64_t remote)
-    : channel_(chan), object_id_(id), remote_id_(remote)
+class Channel;
+
+RpcObject::RpcObject(Channel* chan, std::uint64_t id)
+    : channel_(chan), object_id_(id)
 {}
 
-void RpcObject::send_message(ipc::Message& msg) const
-{
-    channel_->send_message(msg);
-}
-
-ipc::Message RpcProxy::send_request(ipc::Message& msg) const
-{
-    return channel_->send_request(msg, id());
-}
-
-
-RpcProxy::RpcProxy(Channel* chan, std::uint64_t id, std::uint64_t remote)
-    : RpcObject(chan, id, remote)
+RpcProxy::RpcProxy(Channel* chan, std::uint64_t id, std::uint64_t remote_port, std::uint64_t remote_id)
+    : RpcObject(chan, id), remote_port_(remote_port), remote_id_(remote_id)
 {}
 
-RpcReceiver::RpcReceiver(Channel* chan, std::uint64_t id, std::uint64_t remote)
-    : RpcObject(chan, id, remote)
+RpcReceiver::RpcReceiver(Channel* chan, std::uint64_t id)
+    : RpcObject(chan, id)
 {}
 
 }

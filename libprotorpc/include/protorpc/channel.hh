@@ -1,78 +1,81 @@
 #ifndef RPC_CHANNEL_HH
 #define RPC_CHANNEL_HH
 
-#include <unordered_map>
+#include <memory>
 #include <deque>
-
+#include <unordered_map>
+#include <unordered_set>
 #include "protoipc/port.hh"
+#include "protorpc/message.hh"
 #include "protorpc/rpcobject.hh"
 
 namespace rpc
 {
-
     class Channel
     {
     public:
-        Channel(ipc::Port port);
+        struct PendingRpcMessage
+        {
+            std::uint64_t source_port;
+            std::uint64_t destination_object;
+            rpc::Message message;
+        };
+
+        Channel(std::uint64_t port_id, ipc::Port port);
 
         /**
-         * Binds a receiver to the current channel and returns a reference to it.
-         * Notifies the broker through the port of the new object's creation.
+         * Binds a receiver to the current channel.
          */
-        template <typename T>
-        Receiver<T> bind(std::uint64_t object_id, std::uint64_t remote)
+        template <typename T, typename... Ts>
+        Receiver<T> bind(Ts&&... args)
         {
-            Receiver<T> object = std::make_shared<T>(this, object_id, remote);
-            receivers_.emplace(object_id, object);
-            bind_object(object_id);
+            Receiver<T> object = std::make_shared<T>(this, current_id_++, std::forward<Ts>(args)...);
+            receivers_[object->id()] = object;
 
             return object;
         }
 
         /**
-         * Binds a proxy to the current channel and returns a reference to it.
-         * Notifies the broker through the port of the new object's creation.
+         * Binds a proxy to the current channel.
          */
         template <typename T>
-        Proxy<T> bind(std::uint64_t object_id, std::uint64_t remote)
+        Proxy<T> bind(std::uint64_t remote_port, std::uint64_t remote_id)
         {
-            Proxy<T> object = std::make_shared<T>(this, object_id, remote);
-            bind_object(object_id);
-
+            Proxy<T> object = std::make_shared<T>(this, current_id_++, remote_port, remote_id);
             return object;
         }
 
         /**
-         * Sends a message through the native socket.
-         */
-        void send_message(ipc::Message& message);
-
-        /**
-         * Sends a request and synchronously waits for an answer).
-         * XXX: Is returning ipc::Message instead of error code a good idea ?
-         */
-        ipc::Message send_request(ipc::Message& message, std::uint64_t sender);
-
-        /**
-         * Main event loop.
+         * Handles the event loop.
          */
         void loop();
 
-    private:
         /**
-         * Notifies the broker of the binding of a local object.
-         * This binding is necessary for message routing.
+         * Send an unidirectional message to a remote object.
          */
-        void bind_object(std::uint64_t object_id);
+        bool send_message(std::uint64_t remote_port, rpc::Message& msg);
 
+        /**
+         * Sends a bidirectional message to a remote object. Blocks the event loop while
+         * waiting for an answer.
+         */
+        bool send_request(std::uint64_t remote_port, rpc::Message& msg, rpc::Message& result);
+
+    private:
+        std::uint64_t port_id_;
         ipc::Port port_;
+        std::uint64_t current_id_ = 0;
+
         std::unordered_map<std::uint64_t, std::shared_ptr<RpcReceiver>> receivers_;
 
-        // XXX: Do we need to be threadsafe if the typical use case is
-        //      single-threaded ?
-        std::deque<ipc::Message> message_queue_;
-    };
+        /**
+         * Extracts the payload from the ipc message and does preprocessing on the
+         * rpc message (swapping source and destination object ids).
+         */
+        PendingRpcMessage next_message_();
 
+        std::deque<PendingRpcMessage> message_queue_;
+    };
 }
 
 #endif

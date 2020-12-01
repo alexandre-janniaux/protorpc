@@ -342,7 +342,7 @@ class HeaderCompiler(BaseCppCompiler):
                 self.writer.write(f"* {e.name.value}")
 
         # XXX: Hack
-        self.writer.write_line(") { return false; };")
+        self.writer.write_line(") = 0;")
 
     def _compile_proxy_interface(self, node: Interface) -> None:
         interface_name = node.name.value

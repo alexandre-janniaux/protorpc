@@ -10,10 +10,6 @@ namespace math
     class CalculatorImpl: public CalculatorReceiver
     {
     public:
-        CalculatorImpl(rpc::Channel* chan, std::uint64_t object_id)
-            : CalculatorReceiver(chan, object_id)
-        {}
-
         bool add(std::int64_t lhs, std::int64_t rhs, std::int64_t* result) override
         {
             *result = lhs + rhs;
@@ -50,15 +46,15 @@ int main(int argc, char** argv)
     socketpair(AF_UNIX, SOCK_DGRAM, 0, receiver_socks);
 
     ipc::Router router;
-    std::uint64_t client_chan_id = router.add_port(ipc::Port(client_socks[0]));
-    std::uint64_t receiver_chan_id = router.add_port(ipc::Port(receiver_socks[0]));
+    rpc::PortId client_chan_id = router.add_port(ipc::Port(client_socks[0]));
+    rpc::PortId receiver_chan_id = router.add_port(ipc::Port(receiver_socks[0]));
 
     // Setting up channels
     rpc::Channel client_chan(client_chan_id, ipc::Port(client_socks[1]));
     rpc::Channel receiver_chan(receiver_chan_id, ipc::Port(receiver_socks[1]));
 
-    auto receiver = receiver_chan.bind<math::CalculatorImpl>();
-    auto proxy = client_chan.bind<math::CalculatorProxy>(receiver_chan_id, receiver->id());
+    rpc::ObjectId receiver_id = receiver_chan.bind<math::CalculatorImpl>();
+    auto proxy = client_chan.connect<math::CalculatorProxy>(receiver_chan_id, receiver_id);
 
     std::thread router_thread([&]() {
         router.loop();

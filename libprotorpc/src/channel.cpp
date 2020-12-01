@@ -65,7 +65,7 @@ void Channel::loop()
             if (handler == receivers_.end())
                 throw std::runtime_error("Destination object not found");
 
-            handler->second->on_message(*this, pending_msg.source_port, pending_msg.message);
+            handler->second->on_message(*this, pending_msg.destination_object, pending_msg.source_port, pending_msg.message);
             message_queue_.pop_front();
         }
     }

@@ -207,7 +207,7 @@ class SourceCompiler(BaseCppCompiler):
             return
 
         self.writer.write_line("rpc::Message __sidl_reply;")
-        self.writer.write_line("__sidl_reply.source = id();")
+        self.writer.write_line("__sidl_reply.source = __sidl_id;")
         self.writer.write_line("__sidl_reply.destination = __sidl_message.destination;")
         self.writer.write_line("__sidl_reply.opcode = __sidl_message.opcode;")
         self.writer.write_line("rpc::Serializer __sidl_s;")
@@ -223,7 +223,7 @@ class SourceCompiler(BaseCppCompiler):
 
         self.writer.write_line("__sidl_reply.payload = __sidl_s.get_payload();")
         self.writer.write_line("__sidl_reply.handles = __sidl_s.get_handles();")
-        self.writer.write_line("channel_->send_message(__sidl_source_port, __sidl_reply);")
+        self.writer.write_line("__sidl_channel.send_message(__sidl_source_port, __sidl_reply);")
 
     def _compile_proxy_interface(self, node: Interface) -> None:
         self._current_interface = node.name.value
@@ -237,7 +237,7 @@ class SourceCompiler(BaseCppCompiler):
         self._current_interface = node.name.value
         self._current_opcode = 0
 
-        self.writer.write_line(f"void {node.name.value}Receiver::on_message(std::uint64_t __sidl_source_port, rpc::Message& __sidl_message)")
+        self.writer.write_line(f"void {node.name.value}Receiver::on_message(rpc::Channel& __sidl_channel, rpc::ObjectId __sidl_id, rpc::PortId __sidl_source_port, rpc::Message& __sidl_message)")
         self.writer.write_line("{")
         self.writer.indent()
         self.writer.write_line("switch (__sidl_message.opcode)")
@@ -375,18 +375,11 @@ class HeaderCompiler(BaseCppCompiler):
         self.writer.write_line("public:")
         self.writer.indent()
 
-        # Constructor
-        self.writer.write_line(f"{interface_name}Receiver(rpc::Channel* chan, std::uint64_t object_id)")
-        self.writer.indent()
-        self.writer.write_line(f": rpc::RpcReceiver(chan, object_id)")
-        self.writer.deindent()
-        self.writer.write_line("{}")
-
         # Destructor
         self.writer.write_line(f"virtual ~{interface_name}Receiver() {{}}")
 
         # on_message overload
-        self.writer.write_line("void on_message(std::uint64_t source_port, rpc::Message& message) override;")
+        self.writer.write_line("void on_message(rpc::Channel& channel, rpc::ObjectId object, rpc::PortId source_port, rpc::Message& message) override;")
 
         for method in node.methods:
             self._compile_receiver_method(method)

@@ -55,7 +55,7 @@ namespace rpc
          * Handler called by the channel when a message received for the given
          * receiver.
          */
-        virtual void on_message(Channel& chan, PortId source_port, rpc::Message& message) = 0;
+        virtual void on_message(Channel& chan, ObjectId current_object, PortId source_port, rpc::Message& message) = 0;
     };
 
     template <typename T>

@@ -10,53 +10,52 @@ namespace rpc
     class Message;
 
     class RpcObject
+    {};
+
+    using ObjectId = std::uint64_t;
+    using PortId = std::uint64_t;
+
+    class RpcProxy : public RpcObject
     {
     public:
-        RpcObject(Channel* chan, std::uint64_t id);
+        RpcProxy(Channel* chan, ObjectId id, PortId remote_port, ObjectId remote_id)
+            : channel_(chan), id_(id), remote_port_(remote_port), remote_id_(remote_id)
+        {}
 
-        std::uint64_t id() const
+        PortId remote_port() const
         {
-            return object_id_;
+            return remote_port_;
+        }
+
+        ObjectId remote_id() const
+        {
+            return remote_id_;
+        }
+
+        ObjectId id() const
+        {
+            return id_;
         }
 
     protected:
         Channel* channel_;
 
     private:
-        std::uint64_t object_id_;
-    };
-
-    class RpcProxy : public RpcObject
-    {
-    public:
-        RpcProxy(Channel* chan, std::uint64_t id, std::uint64_t remote_port, std::uint64_t remote_id);
-
-        std::uint64_t remote_port() const
-        {
-            return remote_port_;
-        }
-
-        std::uint64_t remote_id() const
-        {
-            return remote_id_;
-        }
-
-    private:
-        std::uint64_t remote_port_;
-        std::uint64_t remote_id_;
+        ObjectId id_;
+        PortId remote_port_;
+        ObjectId remote_id_;
     };
 
     class RpcReceiver : public RpcObject
     {
     public:
-        RpcReceiver(Channel* chan, std::uint64_t id);
         virtual ~RpcReceiver() {};
 
         /**
          * Handler called by the channel when a message received for the given
          * receiver.
          */
-        virtual void on_message(std::uint64_t source_port, rpc::Message& message) = 0;
+        virtual void on_message(Channel& chan, PortId source_port, rpc::Message& message) = 0;
     };
 
     template <typename T>

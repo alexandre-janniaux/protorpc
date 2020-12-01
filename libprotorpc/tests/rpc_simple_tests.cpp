@@ -132,7 +132,7 @@ constexpr std::uint64_t PING_COMMAND = 42;
 class SimpleSendProxy : public rpc::RpcProxy
 {
 public:
-    SimpleSendProxy(rpc::Channel* chan, std::uint64_t object_id, std::uint64_t remote_port, std::uint64_t remote_id)
+    SimpleSendProxy(rpc::Channel* chan, rpc::ObjectId object_id, rpc::PortId remote_port, rpc::ObjectId remote_id)
         : rpc::RpcProxy(chan, object_id, remote_port, remote_id)
     {}
 
@@ -168,11 +168,7 @@ public:
 class SimpleSendReceiver : public rpc::RpcReceiver
 {
 public:
-    SimpleSendReceiver(rpc::Channel* chan, std::uint64_t object_id)
-        : rpc::RpcReceiver(chan, object_id)
-    {}
-
-    void on_message(std::uint64_t source_port, rpc::Message& message) override
+    void on_message(rpc::Channel& chan, std::uint64_t source_port, rpc::Message& message) override
     {
         if (message.opcode == PING_COMMAND)
         {
@@ -188,7 +184,7 @@ public:
             s.serialize(ping_str);
 
             message.payload = s.get_payload();
-            channel_->send_message(source_port, message);
+            chan.send_message(source_port, message);
         }
     }
 };
@@ -209,15 +205,15 @@ TEST(rpc_test, simple_send)
     // Setting up the router between clients
     ipc::Router router;
 
-    std::uint64_t client_a_id = router.add_port(router_client_a_port);
-    std::uint64_t client_b_id = router.add_port(router_client_b_port);
+    rpc::PortId client_a_id = router.add_port(router_client_a_port);
+    rpc::PortId client_b_id = router.add_port(router_client_b_port);
 
     // Setting up channels
     rpc::Channel first_channel(client_a_id, client_router_a_port);
     rpc::Channel second_channel(client_b_id, client_router_b_port);
 
-    auto receiver = second_channel.bind<SimpleSendReceiver>();
-    auto proxy = first_channel.bind<SimpleSendProxy>(client_b_id, receiver->id());
+    auto receiver_id = second_channel.bind<SimpleSendReceiver>();
+    auto proxy = first_channel.connect<SimpleSendProxy>(client_b_id, receiver_id);
 
     std::thread router_thread([&]() {
         router.loop();
@@ -256,17 +252,17 @@ TEST(rpc_test, simple_multi_proxy)
     // Setting up the router between clients
     ipc::Router router;
 
-    std::uint64_t client_a_id = router.add_port(router_client_a_port);
-    std::uint64_t client_b_id = router.add_port(router_client_b_port);
+    rpc::PortId client_a_id = router.add_port(router_client_a_port);
+    rpc::PortId client_b_id = router.add_port(router_client_b_port);
 
     // Setting up channels
     rpc::Channel first_channel(client_a_id, client_router_a_port);
     rpc::Channel second_channel(client_b_id, client_router_b_port);
 
-    auto receiver = second_channel.bind<SimpleSendReceiver>();
+    auto receiver_id = second_channel.bind<SimpleSendReceiver>();
 
-    auto first_proxy = first_channel.bind<SimpleSendProxy>(client_b_id, receiver->id());
-    auto second_proxy = first_channel.bind<SimpleSendProxy>(client_b_id, receiver->id());
+    auto first_proxy = first_channel.connect<SimpleSendProxy>(client_b_id, receiver_id);
+    auto second_proxy = first_channel.connect<SimpleSendProxy>(client_b_id, receiver_id);
 
     ASSERT_NE(first_proxy->id(), second_proxy->id());
 

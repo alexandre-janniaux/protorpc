@@ -3,14 +3,13 @@ protorpc_headers = include_directories('include')
 
 protorpc_sources += [
   'src/channel.cpp',
-  'src/rpcobject.cpp',
 ]
 
 # Link whole is needed to embed all code from libprotoipc statically (even code
 # unused by the rpc such as ipc::Router).
 protorpc_library = library('protorpc', protorpc_sources,
   include_directories: protorpc_headers,
-  dependencies: [protoipc_headers_dep, fmt_dep],
+  dependencies: [protoipc_headers_dep],
   link_whole: protoipc_static_library,
   install: true
 )

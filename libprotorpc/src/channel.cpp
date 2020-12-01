@@ -65,7 +65,7 @@ void Channel::loop()
             if (handler == receivers_.end())
                 throw std::runtime_error("Destination object not found");
 
-            handler->second->on_message(pending_msg.source_port, pending_msg.message);
+            handler->second->on_message(*this, pending_msg.source_port, pending_msg.message);
             message_queue_.pop_front();
         }
     }
@@ -118,6 +118,12 @@ bool Channel::send_request(std::uint64_t remote_port, rpc::Message& msg, rpc::Me
     }
 
     return true;
+}
+
+void Channel::next_id_()
+{
+    while (allocated_objects_.find(current_id_) != allocated_objects_.end())
+        current_id_++;
 }
 
 }

@@ -29,6 +29,8 @@ namespace ipc
         PortError send(const Message& message);
         PortError receive(Message& message);
 
+        static bool create_pair(Port& a, Port& b);
+
         int handle() const
         {
             return pipe_fd_;

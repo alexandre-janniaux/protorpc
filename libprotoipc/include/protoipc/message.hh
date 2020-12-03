@@ -13,7 +13,6 @@ namespace ipc
     struct Message
     {
         std::uint64_t destination = 0;
-        std::uint64_t opcode = 0;
         std::vector<std::uint8_t> payload;
         std::vector<int> handles;
     };

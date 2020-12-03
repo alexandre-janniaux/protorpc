@@ -10,15 +10,13 @@
 
 TEST(ipc_test, simple_send)
 {
-    int pair[2];
-    ASSERT_EQ(socketpair(AF_UNIX, SOCK_DGRAM, 0, pair), 0);
+    ipc::Port source;
+    ipc::Port destination;
 
-    ipc::Port source(pair[0]);
-    ipc::Port destination(pair[1]);
+    ASSERT_TRUE(ipc::Port::create_pair(source, destination));
 
     ipc::Message sent;
     sent.destination = 78;
-    sent.opcode = 42;
 
     for (unsigned i = 0; i < 123; i++)
         sent.payload.push_back(0x41);
@@ -33,18 +31,16 @@ TEST(ipc_test, simple_send)
 
     ASSERT_EQ(err, ipc::PortError::Ok);
     ASSERT_EQ(received.destination, sent.destination);
-    ASSERT_EQ(received.opcode, sent.opcode);
     ASSERT_EQ(received.payload.size(), sent.payload.size());
     ASSERT_EQ(received.payload, sent.payload);
 }
 
 TEST(ipc_test, send_huge)
 {
-    int pair[2];
-    ASSERT_EQ(socketpair(AF_UNIX, SOCK_DGRAM, 0, pair), 0);
+    ipc::Port source;
+    ipc::Port destination;
 
-    ipc::Port source(pair[0]);
-    ipc::Port destination(pair[1]);
+    ASSERT_TRUE(ipc::Port::create_pair(source, destination));
 
     // 50Mb
     constexpr std::size_t PAYLOAD_SIZE = 50 * 1024 * 1024;
@@ -71,16 +67,13 @@ TEST(ipc_test, send_huge)
 
 TEST(ipc_test, router_simple)
 {
-    int client_a[2];
-    ASSERT_EQ(socketpair(AF_UNIX, SOCK_DGRAM, 0, client_a), 0);
+    ipc::Port client_router_a;
+    ipc::Port router_client_a;
+    ipc::Port client_router_b;
+    ipc::Port router_client_b;
 
-    int client_b[2];
-    ASSERT_EQ(socketpair(AF_UNIX, SOCK_DGRAM, 0, client_b), 0);
-
-    ipc::Port client_router_a = ipc::Port(client_a[0]);
-    ipc::Port router_client_a = ipc::Port(client_a[1]);
-    ipc::Port client_router_b = ipc::Port(client_b[0]);
-    ipc::Port router_client_b = ipc::Port(client_b[1]);
+    ASSERT_TRUE(ipc::Port::create_pair(client_router_a, router_client_a));
+    ASSERT_TRUE(ipc::Port::create_pair(client_router_b, router_client_b));
 
     ipc::Router router;
     ipc::PortId client_a_id = router.add_port(router_client_a);
@@ -119,17 +112,16 @@ TEST(ipc_test, router_simple)
 
 TEST(ipc_test, fd_passing_linux)
 {
-    int pair[2];
-    ASSERT_EQ(socketpair(AF_UNIX, SOCK_DGRAM, 0, pair), 0);
+    ipc::Port parent_port;
+    ipc::Port child_port;
 
-    ipc::Port parent_port(pair[0]);
-    ipc::Port child_port(pair[1]);
+    ASSERT_TRUE(ipc::Port::create_pair(parent_port, child_port));
 
     int parent_pair[2];
 
     // Socket pair only present in the parent. We will pass through a message
     // one end of the pair to the child.
-    ASSERT_EQ(socketpair(AF_UNIX, SOCK_DGRAM, 0, parent_pair), 0);
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, parent_pair), 0);
 
     int parent_a = fcntl(parent_pair[0], F_DUPFD_CLOEXEC, 0);
     int parent_b = fcntl(parent_pair[1], F_DUPFD_CLOEXEC, 0);

@@ -6,11 +6,7 @@
 #include "protoipc/port.hh"
 
 // XXX: High enough limit for common cases (same as kMaxSendmsgHandles in mojo)
-constexpr std::size_t MAX_HANDLES = 128;
-// TODO: Use getsockopt in Port constructor to query the best value
-constexpr std::size_t MSG_MAX_SIZE = 8192;
-
-constexpr std::uint64_t HEADER_META_COUNT = 4;
+constexpr std::size_t IPC_MAX_HANDLES = 128;
 
 namespace ipc
 {
@@ -23,45 +19,41 @@ Port::Port(int fd)
     : pipe_fd_(fd)
 {}
 
-/** Send a message over a native port
+/**
+ * Sends a message over a native port.
  *
- * The message is sent using a sendmsg call + x * send calls.
- * The sendmsg sends the metadata + the handles in the following order.
- *
- * - Payload size: u64
- * - Handle count: u64
- * - Destination : u64
- * - Opcode      : u64
- *
- * Afterwards the send calls send the full payload.
+ * The message is sent over two iovecs. The first iovec contains the ipc header
+ * composed of [payload_size, handle_count, destination]. The second iovec
+ * contains the actual payload.
  */
 PortError Port::send(const Message& message)
 {
-    // First we need to send payload size + handle count + handles
-    std::uint8_t sendmsg_payload[CMSG_SPACE(sizeof(int) * MAX_HANDLES * 2)];
-    std::uint64_t header_payload[HEADER_META_COUNT] =
-    {
+    char sendmsg_control[CMSG_SPACE(sizeof(int) * IPC_MAX_HANDLES * 2)] = {0};
+    std::uint64_t ipc_header[] = {
         message.payload.size(),
         message.handles.size(),
-        message.destination,
-        message.opcode
+        message.destination
     };
 
     struct msghdr header = {0};
-    struct iovec iov;
+    struct iovec iov[2];
 
-    iov.iov_base = &header_payload[0];
-    iov.iov_len = sizeof(header_payload);
+    // Header iovec
+    iov[0].iov_base = ipc_header;
+    iov[0].iov_len  = sizeof(ipc_header);
 
-    header.msg_iov = &iov;
-    header.msg_iovlen = 1;
+    // Data iovec
+    iov[1].iov_base = const_cast<std::uint8_t*>(message.payload.data());
+    iov[1].iov_len  = message.payload.size();
+
+    header.msg_iov = iov;
+    header.msg_iovlen = 2;
 
     if (message.handles.size() > 0)
     {
-        header.msg_control = sendmsg_payload;
+        header.msg_control = sendmsg_control;
         header.msg_controllen = CMSG_SPACE(sizeof(int) * message.handles.size());
 
-        // Prepare fds
         struct cmsghdr* cmsg = CMSG_FIRSTHDR(&header);
         cmsg->cmsg_level = SOL_SOCKET;
         cmsg->cmsg_type = SCM_RIGHTS;
@@ -70,66 +62,45 @@ PortError Port::send(const Message& message)
         std::memcpy(CMSG_DATA(cmsg), message.handles.data(), sizeof(int) * message.handles.size());
     }
 
+    // XXX: Should we handle EINTR ?
     int err = sendmsg(pipe_fd_, &header, 0);
 
-    if (err < 0)
+    if (err == -1)
     {
         if (errno == EBADF)
             return PortError::BadFileDescriptor;
 
         return PortError::Unknown;
-    }
-
-    std::size_t written = 0;
-
-    while (written != message.payload.size())
-    {
-        std::size_t remaining = message.payload.size() - written;
-        remaining = (remaining > MSG_MAX_SIZE) ? MSG_MAX_SIZE : remaining;
-
-        ssize_t cur_written = ::send(pipe_fd_, message.payload.data() + written, remaining, 0);
-
-        if (cur_written < 0)
-        {
-            if (errno == EINTR)
-                continue;
-
-            if (errno == EBADF)
-                return PortError::BadFileDescriptor;
-
-            return PortError::WriteFailed;
-        }
-
-        written += cur_written;
     }
 
     return PortError::Ok;
 }
 
+/**
+ * Receives a message from a native port.
+ */
 PortError Port::receive(Message& message)
 {
-    message.payload.clear();
-    message.handles.clear();
-
-    // First we receive payload size + handle count + handles
-    // We allocate enough space just to be safe
-    std::uint8_t recvmsg_payload[CMSG_SPACE(sizeof(int) * MAX_HANDLES * 2)];
-    std::uint64_t header_payload[HEADER_META_COUNT] = {0};
+    char recvmsg_control[CMSG_SPACE(sizeof(int) * IPC_MAX_HANDLES * 2)];
+    std::uint64_t ipc_header[3] = {0};
 
     struct msghdr header = {0};
-    struct iovec iov;
+    struct iovec iov[2];
 
-    iov.iov_base = &header_payload[0];
-    iov.iov_len = sizeof(header_payload);
+    // Header iovec
+    iov[0].iov_base = ipc_header;
+    iov[0].iov_len  = sizeof(ipc_header);
 
-    header.msg_iov = &iov;
-    header.msg_iovlen = 1;
-    header.msg_control = recvmsg_payload;
-    header.msg_controllen = sizeof(recvmsg_payload);
+    // Data iovec (temporary)
+    iov[1].iov_base = NULL;
+    iov[1].iov_len = 0;
 
-    int err = recvmsg(pipe_fd_, &header, 0);
+    header.msg_iov = iov;
+    header.msg_iovlen = 2;
 
-    if (err < 0)
+    int err = recvmsg(pipe_fd_, &header, MSG_PEEK);
+
+    if (err == -1)
     {
         if (errno == EBADF)
             return PortError::BadFileDescriptor;
@@ -137,47 +108,50 @@ PortError Port::receive(Message& message)
         return PortError::Unknown;
     }
 
-    // Collect handles
-    std::size_t payload_size = header_payload[0];
-    std::size_t handle_count = header_payload[1];
-    message.destination = header_payload[2];
-    message.opcode = header_payload[3];
+    header.msg_control = recvmsg_control;
+    header.msg_controllen = sizeof(recvmsg_control);
 
-    if (handle_count > 0)
+    message.payload.resize(ipc_header[0]);
+    message.handles.resize(ipc_header[1]);
+    message.destination = ipc_header[2];
+
+    iov[1].iov_base = message.payload.data();
+    iov[1].iov_len  = message.payload.size();
+
+    err = recvmsg(pipe_fd_, &header, MSG_WAITALL);
+
+    if (err == -1)
+    {
+        if (errno == EBADF)
+            return PortError::BadFileDescriptor;
+
+        return PortError::Unknown;
+    }
+
+    if (message.handles.size() > 0)
     {
         struct cmsghdr* cmsg = CMSG_FIRSTHDR(&header);
 
         if (!cmsg)
             return PortError::IncompleteMessage;
 
-        message.handles.resize(handle_count);
-        std::memcpy(message.handles.data(), CMSG_DATA(cmsg), handle_count * sizeof(int));
-    }
-
-    // Now read the actual payload into the output buffer. We do this in two
-    // steps to not be limited by the 200k transfer size limit on sendmsg.
-    message.payload.resize(payload_size);
-    std::size_t bytes_read = 0;
-
-    while (bytes_read != payload_size)
-    {
-        std::size_t remaining = payload_size - bytes_read;
-        remaining = (remaining > MSG_MAX_SIZE) ? MSG_MAX_SIZE : remaining;
-
-        ssize_t cur_read = recv(pipe_fd_, message.payload.data() + bytes_read, remaining, 0);
-
-        if (cur_read < 0)
-        {
-            if (errno == EINTR)
-                continue;
-
-            return PortError::ReadFailed;
-        }
-
-        bytes_read += cur_read;
+        std::memcpy(message.handles.data(), CMSG_DATA(cmsg), sizeof(int) * message.handles.size());
     }
 
     return PortError::Ok;
+}
+
+bool Port::create_pair(Port& a, Port& b)
+{
+    int pair[2];
+
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
+        return false;
+
+    a = Port(pair[0]);
+    b = Port(pair[1]);
+
+    return true;
 }
 
 void Port::close()

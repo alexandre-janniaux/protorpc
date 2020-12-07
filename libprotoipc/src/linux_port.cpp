@@ -35,7 +35,7 @@ PortError Port::send(const Message& message)
         message.destination
     };
 
-    struct msghdr header = {0};
+    struct msghdr header = {};
     struct iovec iov[2];
 
     // Header iovec
@@ -82,9 +82,9 @@ PortError Port::send(const Message& message)
 PortError Port::receive(Message& message)
 {
     char recvmsg_control[CMSG_SPACE(sizeof(int) * IPC_MAX_HANDLES * 2)];
-    std::uint64_t ipc_header[3] = {0};
+    std::uint64_t ipc_header[3];
 
-    struct msghdr header = {0};
+    struct msghdr header = {};
     struct iovec iov[2];
 
     // Header iovec

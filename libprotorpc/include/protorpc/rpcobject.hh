@@ -7,7 +7,7 @@
 namespace rpc
 {
     class Channel;
-    class Message;
+    struct Message;
 
     class RpcObject
     {};

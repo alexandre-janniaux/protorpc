@@ -72,19 +72,24 @@ class Lexer:
         self._cur_token = None
 
     def _skip_ws(self) -> bool:
-        """ Eats whitespaces and returns whether eof was reached. """
+        """ Eats whitespaces + comments and returns whether eof was reached. """
+        in_comment = False
 
         while self._pos < len(self._data):
             c = self._data[self._pos]
 
-            if not c.isspace():
+            if c == '#' and not in_comment:
+                in_comment = True
+
+            if not c.isspace() and not in_comment:
                 break
 
-            if c in [" ", "\r", "\t"]:
-                self._col += 1
-            elif c == "\n":
+            if c == "\n":
                 self._col = 1
                 self._line += 1
+                in_comment = False
+            if c in [" ", "\r", "\t"] or in_comment:
+                self._col += 1
 
             self._pos += 1
 

@@ -19,6 +19,7 @@ namespace rpc
     };
 
     /*
+     * template <>
      * struct serializable<Object> {
      *     // Serialize fields to bytes
      *     static void serialize(Object& obj, Serializer& s) { ... };
@@ -85,7 +86,7 @@ namespace rpc
         {
             serialize<std::size_t>(v.size());
 
-            for (auto e : v)
+            for (auto& e : v)
                 serialize<T>(e);
         }
 

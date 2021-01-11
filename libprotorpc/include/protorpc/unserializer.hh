@@ -17,6 +17,7 @@ namespace rpc
     };
 
     /*
+     * template <>
      * struct unserializable<Object> {
      *     static bool unserialize(Object* out, Unserializer& s) { ... }
      * };

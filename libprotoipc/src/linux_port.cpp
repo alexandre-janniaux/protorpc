@@ -62,15 +62,16 @@ PortError Port::send(const Message& message)
         std::memcpy(CMSG_DATA(cmsg), message.handles.data(), sizeof(int) * message.handles.size());
     }
 
-    // XXX: Should we handle EINTR ?
-    int err = sendmsg(pipe_fd_, &header, 0);
+    int err = 0;
 
-    if (err == -1)
+    while((err = sendmsg(pipe_fd_, &header, 0)) == -1)
     {
-        if (errno == EBADF)
+        if (errno == EINTR)
+            continue;
+        else if (errno == EBADF)
             return PortError::BadFileDescriptor;
-
-        return PortError::Unknown;
+        else
+            return PortError::Unknown;
     }
 
     return PortError::Ok;
@@ -98,14 +99,16 @@ PortError Port::receive(Message& message)
     header.msg_iov = iov;
     header.msg_iovlen = 2;
 
-    int err = recvmsg(pipe_fd_, &header, MSG_PEEK);
+    int err = 0;
 
-    if (err == -1)
+    while ((err = recvmsg(pipe_fd_, &header, MSG_PEEK)) == -1)
     {
-        if (errno == EBADF)
+        if (errno == EINTR)
+            continue;
+        else if (errno == EBADF)
             return PortError::BadFileDescriptor;
-
-        return PortError::Unknown;
+        else
+            return PortError::Unknown;
     }
 
     header.msg_control = recvmsg_control;
@@ -118,14 +121,14 @@ PortError Port::receive(Message& message)
     iov[1].iov_base = message.payload.data();
     iov[1].iov_len  = message.payload.size();
 
-    err = recvmsg(pipe_fd_, &header, MSG_WAITALL);
-
-    if (err == -1)
+    while ((err = recvmsg(pipe_fd_, &header, MSG_WAITALL)) == -1)
     {
-        if (errno == EBADF)
+        if (errno == EINTR)
+            continue;
+        else if (errno == EBADF)
             return PortError::BadFileDescriptor;
-
-        return PortError::Unknown;
+        else
+            return PortError::Unknown;
     }
 
     if (message.handles.size() > 0)

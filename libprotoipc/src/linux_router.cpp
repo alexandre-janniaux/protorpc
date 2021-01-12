@@ -59,10 +59,15 @@ ipc::PortError Router::loop()
         constexpr int EPOLL_MAX_EVENTS = 16;
         struct epoll_event events[EPOLL_MAX_EVENTS];
 
-        int res = epoll_wait(epoll_fd_, events, EPOLL_MAX_EVENTS, -1);
+        int res = 0;
 
-        if (res == -1)
-            return ipc::PortError::PollError;
+        while ((res = epoll_wait(epoll_fd_, events, EPOLL_MAX_EVENTS, -1)) == -1)
+        {
+            if (errno == EINTR)
+                continue;
+            else
+                return ipc::PortError::PollError;
+        }
 
         for (int i = 0; i < res; i++)
         {

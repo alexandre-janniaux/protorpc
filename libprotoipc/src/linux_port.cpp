@@ -35,6 +35,9 @@ PortError Port::send(const Message& message)
         message.destination
     };
 
+    if (message.handles.size() > IPC_MAX_HANDLES)
+        return PortError::TooManyHandles;
+
     struct msghdr header = {};
     struct iovec iov[2];
 
@@ -113,6 +116,9 @@ PortError Port::receive(Message& message)
 
     header.msg_control = recvmsg_control;
     header.msg_controllen = sizeof(recvmsg_control);
+
+    if (ipc_header[1] > IPC_MAX_HANDLES)
+        return PortError::TooManyHandles;
 
     message.payload.resize(ipc_header[0]);
     message.handles.resize(ipc_header[1]);

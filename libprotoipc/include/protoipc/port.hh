@@ -10,6 +10,7 @@ namespace ipc
     {
         Ok = 0,
         IncompleteMessage,
+        TooManyHandles,
         ReadFailed,
         WriteFailed,
         BadFileDescriptor,

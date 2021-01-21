@@ -4,6 +4,10 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Buffer used for serialization
  */
@@ -22,7 +26,7 @@ typedef struct sidl_serializer_t
 
 int sidl_serializer_init(sidl_serializer_t* s);
 void sidl_serializer_destroy(sidl_serializer_t* s);
-int sidl_serializer_write_raw(sidl_serializer_t* s, void* data, size_t size);
+int sidl_serializer_write_raw(sidl_serializer_t* s, const void* data, size_t size);
 int sidl_serializer_write_fd(sidl_serializer_t* s, int fd);
 
 // Standard data types
@@ -36,5 +40,9 @@ int sidl_serializer_write_i32(sidl_serializer_t* s, int32_t value);
 int sidl_serializer_write_i64(sidl_serializer_t* s, int64_t value);
 int sidl_serializer_write_usize(sidl_serializer_t* s, size_t value);
 int sidl_serializer_write_string(sidl_serializer_t* s, const char* str);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

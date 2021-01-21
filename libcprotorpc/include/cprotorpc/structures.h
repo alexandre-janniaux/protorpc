@@ -4,6 +4,10 @@
 #include <stddef.h>
 #include <assert.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Generic vector of elements
  */
@@ -46,5 +50,9 @@ inline static void* sidl_optional_data(sidl_optional_t* opt)
     assert(!sidl_optional_empty(opt) && "Tried to get element from empty optional");
     return opt->element;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

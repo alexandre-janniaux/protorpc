@@ -33,7 +33,7 @@ void sidl_serializer_destroy(sidl_serializer_t* s)
     free(s->fds);
 }
 
-int sidl_serializer_write_raw(sidl_serializer_t* s, void* data, size_t size)
+int sidl_serializer_write_raw(sidl_serializer_t* s, const void* data, size_t size)
 {
     if (s->data_size + size > s->data_capacity)
     {
@@ -115,7 +115,7 @@ int sidl_serializer_write_string(sidl_serializer_t* s, const char* str)
     if (sidl_serializer_write_usize(s, length) < 0)
         return -1;
 
-    if (sidl_serializer_write_raw(s, s, length) < 0)
+    if (sidl_serializer_write_raw(s, str, length) < 0)
         return -1;
 
     return 0;

@@ -4,6 +4,10 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct sidl_unserializer_t
 {
     // Input data
@@ -32,5 +36,9 @@ int sidl_unserializer_read_i32(sidl_unserializer_t* u, int32_t* value);
 int sidl_unserializer_read_i64(sidl_unserializer_t* u, int64_t* value);
 int sidl_unserializer_read_usize(sidl_unserializer_t* u, size_t* value);
 int sidl_unserializer_read_string(sidl_unserializer_t* u, const char** str);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

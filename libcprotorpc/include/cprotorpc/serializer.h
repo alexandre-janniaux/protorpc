@@ -9,13 +9,21 @@
  */
 typedef struct sidl_serializer_t
 {
-    size_t size;
-    size_t capacity;
+    // Raw serialized data
+    size_t data_size;
+    size_t data_capacity;
     void* data;
+
+    // File descriptors
+    size_t fd_count;
+    size_t fd_capacity;
+    int* fds;
 } sidl_serializer_t;
 
 int sidl_serializer_init(sidl_serializer_t* s);
+void sidl_serializer_destroy(sidl_serializer_t* s);
 int sidl_serializer_write_raw(sidl_serializer_t* s, void* data, size_t length);
+int sidl_serializer_write_fd(sidl_serializer_t* s, int fd);
 
 // Standard data types
 int sidl_serializer_write_u8(sidl_serializer_t* s, uint8_t value);

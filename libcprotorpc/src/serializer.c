@@ -33,13 +33,13 @@ void sidl_serializer_destroy(sidl_serializer_t* s)
     free(s->fds);
 }
 
-int sidl_serializer_write_raw(sidl_serializer_t* s, void* data, size_t length)
+int sidl_serializer_write_raw(sidl_serializer_t* s, void* data, size_t size)
 {
-    if (s->data_size + length > s->data_capacity)
+    if (s->data_size + size > s->data_capacity)
     {
         size_t new_capacity = s->data_capacity;
 
-        while (s->data_size + length > new_capacity)
+        while (s->data_size + size > new_capacity)
             new_capacity *= 2;
 
         void* new_data = realloc(s->data, new_capacity);
@@ -51,8 +51,8 @@ int sidl_serializer_write_raw(sidl_serializer_t* s, void* data, size_t length)
         s->data = new_data;
     }
 
-    memcpy((char*)s->data + s->data_size, data, length);
-    s->data_size += length;
+    memcpy((char*)s->data + s->data_size, data, size);
+    s->data_size += size;
 
     return 0;
 }
@@ -90,7 +90,7 @@ int sidl_serializer_write_##SIDL_NAME(sidl_serializer_t* s, C_TYPE value) {\
         s->data = new_data; \
     } \
     \
-    *(C_TYPE*)(((char*)s->data) + s->data_size) = value; \
+    *(C_TYPE*)((char*)s->data + s->data_size) = value; \
     s->data_size += sizeof(C_TYPE); \
     \
     return 0; \

@@ -22,7 +22,7 @@ typedef struct sidl_serializer_t
 
 int sidl_serializer_init(sidl_serializer_t* s);
 void sidl_serializer_destroy(sidl_serializer_t* s);
-int sidl_serializer_write_raw(sidl_serializer_t* s, void* data, size_t length);
+int sidl_serializer_write_raw(sidl_serializer_t* s, void* data, size_t size);
 int sidl_serializer_write_fd(sidl_serializer_t* s, int fd);
 
 // Standard data types

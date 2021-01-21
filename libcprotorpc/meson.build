@@ -1,6 +1,7 @@
 cprotorpc_headers = include_directories('include')
 cprotorpc_sources = [
   'src/serializer.c',
+  'src/unserializer.c',
   'src/structures.c'
 ]
 
@@ -15,6 +16,7 @@ cprotorpc_dep = declare_dependency(link_with: cprotorpc_library,
 
 cprotorpc_install_headers = [
   'include/cprotorpc/serializer.h',
+  'include/cprotorpc/unserializer.h',
   'include/cprotorpc/structures.h'
 ]
 

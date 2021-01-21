@@ -76,7 +76,7 @@ int sidl_serializer_write_fd(sidl_serializer_t* s, int fd)
     return 0;
 }
 
-#define DEFINE_SERIALIZER(SIDL_NAME, C_TYPE) \
+#define SIDL_DEFINE_SERIALIZER(SIDL_NAME, C_TYPE) \
 int sidl_serializer_write_##SIDL_NAME(sidl_serializer_t* s, C_TYPE value) {\
     if (s->data_size + sizeof(C_TYPE) > s->data_capacity) \
     { \
@@ -96,17 +96,9 @@ int sidl_serializer_write_##SIDL_NAME(sidl_serializer_t* s, C_TYPE value) {\
     return 0; \
 }
 
-DEFINE_SERIALIZER(u8, uint8_t)
-DEFINE_SERIALIZER(u16, uint16_t)
-DEFINE_SERIALIZER(u32, uint32_t)
-DEFINE_SERIALIZER(u64, uint64_t)
-DEFINE_SERIALIZER(i8, int8_t)
-DEFINE_SERIALIZER(i16, int16_t)
-DEFINE_SERIALIZER(i32, int32_t)
-DEFINE_SERIALIZER(i64, int64_t)
-DEFINE_SERIALIZER(usize, size_t)
+XM_SIDL_TYPES(SIDL_DEFINE_SERIALIZER)
 
-#undef DEFINE_SERIALIZER
+#undef SIDL_DEFINE_SERIALIZER
 
 int sidl_serializer_write_string(sidl_serializer_t* s, const char* str)
 {

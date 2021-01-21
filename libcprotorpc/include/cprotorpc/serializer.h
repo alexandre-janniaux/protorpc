@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "cprotorpc/sidl_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,16 +31,16 @@ int sidl_serializer_write_raw(sidl_serializer_t* s, const void* data, size_t siz
 int sidl_serializer_write_fd(sidl_serializer_t* s, int fd);
 
 // Standard data types
-int sidl_serializer_write_u8(sidl_serializer_t* s, uint8_t value);
-int sidl_serializer_write_u16(sidl_serializer_t* s, uint16_t value);
-int sidl_serializer_write_u32(sidl_serializer_t* s, uint32_t value);
-int sidl_serializer_write_u64(sidl_serializer_t* s, uint64_t value);
-int sidl_serializer_write_i8(sidl_serializer_t* s, int8_t value);
-int sidl_serializer_write_i16(sidl_serializer_t* s, int16_t value);
-int sidl_serializer_write_i32(sidl_serializer_t* s, int32_t value);
-int sidl_serializer_write_i64(sidl_serializer_t* s, int64_t value);
-int sidl_serializer_write_usize(sidl_serializer_t* s, size_t value);
+#define SIDL_SERIALIZE_FUNCTION(SIDL_TYPE, C_TYPE) \
+    int sidl_serializer_write_##SIDL_TYPE(sidl_serializer_t* s, C_TYPE value);
+
+XM_SIDL_TYPES(SIDL_SERIALIZE_FUNCTION)
+
+#undef SIDL_SERIALIZE_FUNCTION
+
 int sidl_serializer_write_string(sidl_serializer_t* s, const char* str);
+
+
 
 #ifdef __cplusplus
 }

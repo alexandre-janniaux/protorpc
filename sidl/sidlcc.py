@@ -20,6 +20,9 @@ def main():
     parser.add_argument(
         "--source-only", help="Only generate the cpp file", action="store_true"
     )
+    parser.add_argument(
+        "-b", "--backend", help="Compilation backend (c, cpp)", default="cpp"
+    )
     parser.add_argument("idl_file", help="input idl file")
 
     args = parser.parse_args()
@@ -35,6 +38,10 @@ def main():
     elif args.source_only:
         compile_header = False
 
+    if args.backend not in ["c", "cpp"]:
+        print(f"Invalid backend '{parser.backend}'")
+        return
+
     idl_filename = os.path.basename(args.idl_file)
     impl_path = "./" + args.outdir + "/" + idl_filename + ".cpp"
     header_path = "./" + args.outdir + "/" + idl_filename + ".hh"
@@ -47,20 +54,23 @@ def main():
     try:
         root = p.parse()
 
-        tr = TypeResolver()
-        tr.visit(root)
+        if args.backend == "cpp":
+            tr = TypeResolver()
+            tr.visit(root)
 
-        if compile_impl:
-            source_compiler = SourceCompiler(idl_filename, tr.types)
-            source_compiler.visit(root)
+            if compile_impl:
+                source_compiler = SourceCompiler(idl_filename, tr.types)
+                source_compiler.visit(root)
 
-            open(impl_path, "w").write(source_compiler.data)
+                open(impl_path, "w").write(source_compiler.data)
 
-        if compile_header:
-            header_compiler = HeaderCompiler(idl_filename, tr.types)
-            header_compiler.visit(root)
+            if compile_header:
+                header_compiler = HeaderCompiler(idl_filename, tr.types)
+                header_compiler.visit(root)
 
-            open(header_path, "w").write(header_compiler.data)
+                open(header_path, "w").write(header_compiler.data)
+        else:
+            print("C backend not yet implemented")
 
     except SidlException as err:
         start = max(err.line - 10, 0)

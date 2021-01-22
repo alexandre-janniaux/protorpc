@@ -5,8 +5,8 @@ import os
 from sidl.lexer import Lexer
 from sidl.parser import Parser
 from sidl.utils import PrettyPrinter, SidlException
-from sidl.compiler import SourceCompiler, HeaderCompiler
-from sidl.type_resolver import TypeResolver
+from sidl.compiler import CppSourceCompiler, CppHeaderCompiler, CSourceCompiler, CHeaderCompiler
+from sidl.type_resolver import CppTypeResolver, CTypeResolver
 
 
 def main():
@@ -43,8 +43,6 @@ def main():
         return
 
     idl_filename = os.path.basename(args.idl_file)
-    impl_path = "./" + args.outdir + "/" + idl_filename + ".cpp"
-    header_path = "./" + args.outdir + "/" + idl_filename + ".hh"
 
     data = open(args.idl_file, "r").read()
     lines = data.split("\n")
@@ -55,22 +53,40 @@ def main():
         root = p.parse()
 
         if args.backend == "cpp":
-            tr = TypeResolver()
+
+            tr = CppTypeResolver()
             tr.visit(root)
 
             if compile_impl:
-                source_compiler = SourceCompiler(idl_filename, tr.types)
+                source_compiler = CppSourceCompiler(idl_filename, tr.types)
                 source_compiler.visit(root)
 
                 open(impl_path, "w").write(source_compiler.data)
 
             if compile_header:
-                header_compiler = HeaderCompiler(idl_filename, tr.types)
+                header_compiler = CppHeaderCompiler(idl_filename, tr.types)
                 header_compiler.visit(root)
 
                 open(header_path, "w").write(header_compiler.data)
         else:
-            print("C backend not yet implemented")
+            impl_path = "./" + args.outdir + "/" + idl_filename + ".c"
+            header_path = "./" + args.outdir + "/" + idl_filename + ".h"
+
+            print("WARNING: C backend is experimental and incomplete")
+            tr = CTypeResolver()
+            tr.visit(root)
+
+            if compile_impl:
+                source_compiler = CSourceCompiler(idl_filename, tr.types)
+                source_compiler.visit(root)
+
+                open(impl_path, "w").write(source_compiler.data)
+
+            if compile_header:
+                header_compiler = CHeaderCompiler(idl_filename, tr.types)
+                header_compiler.visit(root)
+
+                open(header_path, "w").write(header_compiler.data)
 
     except SidlException as err:
         start = max(err.line - 10, 0)

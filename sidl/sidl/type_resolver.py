@@ -15,26 +15,11 @@ class TypeResolver(Visitor):
     _handle_tainted: Set[str]
     _type_depth: int
 
-    def __init__(self):
-        self._defined_types = {
-            "bool": "bool",
-            "u8": "std::uint8_t",
-            "u16": "std::uint16_t",
-            "u32": "std::uint32_t",
-            "u64": "std::uint64_t",
-            "i8": "std::int8_t",
-            "i16": "std::int16_t",
-            "i32": "std::int32_t",
-            "i64": "std::int64_t",
-            "usize": "std::size_t",
-            "string": "std::string",
-            "handle": "int",
-            "optional": "std::optional",
-            "vec": "std::vector",
-        }
+    def __init__(self, defined_types: Dict[str, str]) -> None:
 
         # Current depth inside the type (used for generic types).
         self._type_depth = 0
+        self._defined_types = defined_types
         self._defined_interfaces = set()
         self._defined_methods = set()
 
@@ -145,3 +130,46 @@ class TypeResolver(Visitor):
     @property
     def types(self) -> Dict[str, str]:
         return self._defined_types
+
+
+class CppTypeResolver(TypeResolver):
+    def __init__(self) -> None:
+        defined_types = {
+            "bool": "bool",
+            "u8": "std::uint8_t",
+            "u16": "std::uint16_t",
+            "u32": "std::uint32_t",
+            "u64": "std::uint64_t",
+            "i8": "std::int8_t",
+            "i16": "std::int16_t",
+            "i32": "std::int32_t",
+            "i64": "std::int64_t",
+            "usize": "std::size_t",
+            "string": "std::string",
+            "handle": "int",
+            "optional": "std::optional",
+            "vec": "std::vector",
+        }
+
+        super().__init__(defined_types)
+
+class CTypeResolver(TypeResolver):
+    def __init__(self) -> None:
+        defined_types = {
+            "bool": "u8",
+            "u8": "uint8_t",
+            "u16": "uint16_t",
+            "u32": "uint32_t",
+            "u64": "uint64_t",
+            "i8": "int8_t",
+            "i16": "int16_t",
+            "i32": "int32_t",
+            "i64": "int64_t",
+            "usize": "size_t",
+            "string": "char*",
+            "handle": "int",
+            "optional": "sidl_optional_t",
+            "vec": "sidl_generic_vector_t",
+        }
+
+        super().__init__(defined_types)

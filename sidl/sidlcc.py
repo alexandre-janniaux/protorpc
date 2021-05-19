@@ -53,6 +53,8 @@ def main():
         root = p.parse()
 
         if args.backend == "cpp":
+            impl_path = "./" + args.outdir + "/" + idl_filename + ".cpp"
+            header_path = "./" + args.outdir + "/" + idl_filename + ".hh"
 
             tr = CppTypeResolver()
             tr.visit(root)
